@@ -1,0 +1,15 @@
+
+spu_worker.o: spu/spu_worker.elf
+	embedspu spu_worker $< $@
+
+spu/spu_worker.elf: spu/*.[ch]
+	$(MAKE) -C spu
+
+clean: spu/clean
+
+.PHONY: spu/clean
+spu/clean:
+	$(MAKE) -C spu clean
+
+Makefile: extconf.rb depend
+	ruby $<
