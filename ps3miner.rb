@@ -1,66 +1,60 @@
 
 require 'rubygems'
-require 'uri'
-require 'rest_client'
-require 'json'
 
-require 'ext/spu_miner'
+require 'optparse'
 
-class Bitcoin
-  def self.conf
-    parms = File.read(File.join(ENV['HOME'],
-                                '.bitcoin', 'bitcoin.conf')).split("\n")
-    parms.inject(Hash.new) {|h, p| h.merge! Hash[*p.split("=")] }
-  end
+require './bitcoin'
+require './ext/spu_miner'
 
-  def self.rpc_client(server = {})
-    conf = self.conf
-    default = {
-      :userinfo => [conf['rpcuser'], conf['rpcpassword']].join(':'),
-      :host => 'localhost',
-      :port => 8332,
-      :path => '/'
+class PS3Miner
+  attr_reader :options, :client
+
+  def initialize(args)
+    @options = {
+      :threads => 1
     }
-    uri = URI::HTTP.build(default.merge(server))
-    RPCClient.new(uri)
+    OptionParser.new do |opts|
+      opts.banner = "Usage: #{$0} [options] [rpc-server-host]"
+
+      opts.on("-t", "--threads N", Integer,
+              "Number of SPU threads to start") do |n|
+        @options[:threads] = n
+      end
+
+      opts.on("-b", "--balance",
+              "Show balance and exit") do |opt|
+        @options[:balance] = opt
+      end
+    end.parse!(args)
+
+    server = ARGV.shift || ENV['BITCOIN_SERVER'] ||
+      begin
+        warn "Warning: using default server localhost"
+        'localhost'
+      end
+    @client = Bitcoin.rpc_client(:host => server)
   end
 
-  class RPCClient
-    class JSONRPCException < RuntimeError; end
-
-    def initialize(url)
-      case url
-      when URI
-      when String
-        url = URI.parse(url)
-      else
-        raise ArgumentError, "bad URL given"
-      end
-
-      @url = url
+  def main
+    if options[:balance]
+      puts "Current balance = #{client.getbalance} BTC"
+      exit
     end
 
-    def method_missing(method, *params)
-      postdata = {:id => 'jsonrpc',
-        :method => method, :params => params}.to_json
-      respdata = RestClient.post @url.to_s, postdata
-      resp = JSON.parse respdata
-      if resp['error']
-        raise JSONRPCException, resp['error']
-      end
+    puts "Current block count is #{client.getblockcount}"
+    puts "Current difficulty is #{client.getdifficulty}"
 
-      if block_given?
-        yield resp['result']
-      else
-        resp['result']
-      end
+    puts "Starting mining threads..."
+    threads = []
+    options[:threads].times do |n|
+      threads << Thread.new { mine(n) }
     end
+    threads.each {|thread| thread.join }
   end
-end
 
-def main
-  server = ARGV.shift || 'localhost'
-  client = Bitcoin.rpc_client(:host => server)
-
-  puts "Current balance = #{client.getbalance}"
+  def mine(n)
+    miner = Bitcoin::SPUMiner.new
+    miner.run(n)
+    miner.run(1000 + n)
+  end
 end

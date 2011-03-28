@@ -10,6 +10,3 @@ clean: spu/clean
 .PHONY: spu/clean
 spu/clean:
 	$(MAKE) -C spu clean
-
-Makefile: extconf.rb depend
-	ruby $<
