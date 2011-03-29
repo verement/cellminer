@@ -30,7 +30,7 @@ class PS3Miner
         options[:balance] = opt
       end
 
-      opts.on("-t", "--test",
+      opts.on("--test",
               "Use known testing data") do |opt|
         options[:test] = opt
       end
@@ -101,7 +101,7 @@ class PS3Miner
       work = Hash[getwork.map {|k, v|
                     [k.to_sym, [v].pack('H*').unpack('V*').pack('N*')]}]
 
-      if solved = miner.run(work[:data], work[:target],
+      if solved = miner.run(work[:data], work[:target].reverse,
                             work[:midstate], work[:hash1])
         say "Worker found something!"
         # send back to server...
@@ -109,7 +109,7 @@ class PS3Miner
 
         mutex.synchronize do
           puts "Solved? data ="
-          pp solved
+          pp solved.unpack('H*')
           puts "Server response ="
           pp response
         end
