@@ -1,12 +1,13 @@
 
 require 'uri'
-require 'rest_client'
 require 'json'
+require 'rest_client'
 
 module Bitcoin
+  CONFFILE = File.join(ENV['HOME'], '.bitcoin', 'bitcoin.conf')
+
   def self.conf
-    parms = File.read(File.join(ENV['HOME'],
-                                '.bitcoin', 'bitcoin.conf')).split("\n")
+    parms = File.read(CONFFILE).split("\n")
     parms.inject(Hash.new) {|h, p| h.merge! Hash[*p.split("=")] }
   end
 
@@ -23,25 +24,31 @@ module Bitcoin
   end
 
   class RPCClient
+    attr_reader :url
+
     class JSONRPCException < RuntimeError; end
 
-    def initialize(url)
-      case url
+    def initialize(uri)
+      case uri
       when URI
       when String
-        url = URI.parse(url)
+        uri = URI.parse(uri)
       else
-        raise ArgumentError, "bad URL given"
+        raise ArgumentError, "bad URI given"
       end
 
-      @url = url
+      @url = uri.to_s
     end
 
     def method_missing(method, *params)
-      postdata = {:id => 'jsonrpc',
-        :method => method, :params => params}.to_json
-      respdata = RestClient.post @url.to_s, postdata
-      resp = JSON.parse respdata
+      postdata = {
+        :id => 'jsonrpc',
+        :method => method,
+        :params => params
+      }.to_json
+      respdata = RestClient.post(url, postdata)
+
+      resp = JSON.parse(respdata)
       if resp['error']
         raise JSONRPCException, resp['error']
       end
