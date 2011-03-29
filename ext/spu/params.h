@@ -1,12 +1,50 @@
 
+# ifndef SPU_PARAMS_H
+# define SPU_PARAMS_H
+
 enum {
   WORKER_FOUND_NOTHING = 0,
   WORKER_FOUND_SOMETHING,
+  WORKER_VERIFY_ERROR,
   WORKER_DMA_ERROR,
 };
 
 struct worker_params {
-  int n;
+  char target[32];
+  char midstate[32];
+  char hash1[64];
+  char data[128];
 
   char padding[127];  /* required for proper DMA */
 };
+
+# endif
+
+/*
+  as received on the wire:
+
+  target
+  00000000 00000000 00000000 00000000
+  00000000 00000000 39f30000 00000000
+
+  midstate
+  25deaf46 a5c91904 4f63da11 26883ba2
+  14aa4266 7b15f39a 8c199607 7617da11
+
+  hash1
+  00000000 00000000 00000000 00000000
+  00000000 00000000 00000000 00000000
+  00000080 00000000 00000000 00000000
+  00000000 00000000 00000000 00010000
+
+  data (version, previous block hash, merkle root hash, time, bits, nonce)
+  00000001 6c401209 a8f4a0d2 2a4a059a
+  9fd13c34 2a901444 c5472a61 00003bb8
+  00000000 78bbceb9 350527d4 66e0da8a
+  ac5be510 e65959cb 66ec494b 3d041885
+
+  a4a84fb0 4d90b428 1b00f339 00000000
+  00000080 00000000 00000000 00000000
+  00000000 00000000 00000000 00000000
+  00000000 00000000 00000000 80020000
+*/

@@ -1,8 +1,9 @@
+# -*- makefile -*-
 
-spu_worker.o: spu/spu_worker.elf
+spu_worker.o: spu/worker.elf
 	embedspu spu_worker $< $@
 
-spu/spu_worker.elf: spu/*.[ch]
+spu/worker.elf: spu/*.[ch]
 	$(MAKE) -C spu
 
 clean: spu/clean
@@ -10,3 +11,8 @@ clean: spu/clean
 .PHONY: spu/clean
 spu/clean:
 	$(MAKE) -C spu clean
+
+depend.auto: *.[ch]
+	@$(CC) -MM *.c >$@
+
+include depend.auto

@@ -2,6 +2,7 @@
 require 'rubygems'
 
 require 'optparse'
+require 'pp'
 
 require './bitcoin'
 require './ext/spu_miner'
@@ -44,17 +45,32 @@ class PS3Miner
     puts "Current block count is #{client.getblockcount}"
     puts "Current difficulty is #{client.getdifficulty}"
 
-    puts "Starting mining threads..."
+    puts "Starting #{options[:threads]} mining thread(s)..."
+
+    @mutex = Mutex.new
+
     threads = []
     options[:threads].times do |n|
       threads << Thread.new { mine(n) }
     end
+
     threads.each {|thread| thread.join }
   end
 
   def mine(n)
     miner = Bitcoin::SPUMiner.new
-    miner.run(n)
-    miner.run(1000 + n)
+
+    # unpack hex strings and fix byte ordering
+    work = Hash[client.getwork.map {|k, v|
+                  [k.to_sym, [v].pack('H*').unpack('V*').pack('N*')]}]
+
+    if solved = miner.run(work[:data], work[:target],
+                          work[:midstate], work[:hash1])
+      @mutex.synchronize do
+        puts "Solved? data ="
+        pp solved
+      end
+      # send back to server...
+    end
   end
 end

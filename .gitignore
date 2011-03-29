@@ -1,5 +1,7 @@
 *.o
 *.so
 *.elf
-ext/Makefile
 *.log
+ext/Makefile
+ext/depend.auto
+ext/spu/depend

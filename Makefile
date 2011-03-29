@@ -11,3 +11,7 @@ ext/Makefile: ext/extconf.rb ext/depend
 .PHONY: clean
 clean:
 	$(MAKE) -C ext $@
+
+.PHONY: again
+again: clean
+	$(MAKE)

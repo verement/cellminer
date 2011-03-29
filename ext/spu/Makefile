@@ -1,15 +1,19 @@
 
 CC		= spu-gcc
-CFLAGS		= -Wall $(OPTIMIZE) -DDEBUG
+CFLAGS		= -Wall -Werror $(OPTIMIZE) -DDEBUG
 OPTIMIZE	= -O3 -funroll-loops -fmodulo-sched -ftree-vectorize
 
-SDK		= /opt/cell/sdk/prototype/usr/spu
+worker.elf: worker.o sha256.o util.o
+	$(CC) $(LDFLAGS) -o $@ $^
 
-spu_worker.elf: worker.o
-	$(CC) $(LDFLAGS) -o $@ $<
-
-worker.o: worker.c params.h
+test.elf: test.o sha256.o util.o
+	$(CC) $(LDFLAGS) -o $@ $^
 
 .PHONY: clean
 clean:
 	-rm -f *.elf *.o
+
+depend: *.[ch]
+	@$(CC) -MM *.c >$@
+
+include depend

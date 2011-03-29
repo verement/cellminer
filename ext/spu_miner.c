@@ -2,9 +2,9 @@
 # include <stdio.h>
 
 # include <stdlib.h>
+# include <string.h>
 # include <ruby.h>
 # include <libspe2.h>
-# include <pthread.h>
 
 # include "spu/params.h"
 
@@ -27,24 +27,41 @@ VALUE m_initialize(VALUE self)
   if (spe_program_load(miner->spe_context, &spu_worker))
     rb_raise(rb_eRuntimeError, "failed to load SPE program");
 
-  fprintf(stderr, "Bitcoin::SPUMiner initialized (thread %lx)\n",
-	  pthread_self());
-
   return Qnil;
 }
 
 static
-VALUE m_run(VALUE self, VALUE arg)
+VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
 {
   struct spu_miner *miner;
-  int n = NUM2INT(arg);
   spe_stop_info_t stop_info;
   char *stop_reason = "unknown";
   int code = -1;
 
   Data_Get_Struct(self, struct spu_miner, miner);
 
-  miner->params.n = n;
+  /* prepare parameters */
+
+  StringValue(data);
+  StringValue(target);
+  StringValue(midstate);
+  StringValue(hash1);
+
+  if (RSTRING_LEN(data) != 128)
+    rb_raise(rb_eArgError, "data must be 128 bytes");
+  if (RSTRING_LEN(target) != 32)
+    rb_raise(rb_eArgError, "target must be 32 bytes");
+  if (RSTRING_LEN(midstate) != 32)
+    rb_raise(rb_eArgError, "midstate must be 32 bytes");
+  if (RSTRING_LEN(hash1) != 64)
+    rb_raise(rb_eArgError, "hash1 must be 64 bytes");
+
+  memcpy((void *) miner->params.data,     RSTRING_PTR(data),    128);
+  memcpy((void *) miner->params.target,   RSTRING_PTR(target),   32);
+  memcpy((void *) miner->params.midstate, RSTRING_PTR(midstate), 32);
+  memcpy((void *) miner->params.hash1,    RSTRING_PTR(hash1),    64);
+
+  /* run the SPE context */
 
   if (spe_context_run(miner->spe_context, &miner->entry, 0,
 		      (void *) &miner->params, 0, &stop_info) < 0)
@@ -81,9 +98,6 @@ VALUE m_run(VALUE self, VALUE arg)
     break;
   }
 
-  fprintf(stderr, "SPU stopped (reason %s[%u], code %d, status %x)\n",
-	  stop_reason, stop_info.stop_reason, code, stop_info.spu_status);
-
   if (stop_info.stop_reason != SPE_STOP_AND_SIGNAL) {
     miner->entry = SPE_DEFAULT_ENTRY;
     rb_raise(rb_eRuntimeError, "SPE stopped with %s (%d)", stop_reason, code);
@@ -92,9 +106,13 @@ VALUE m_run(VALUE self, VALUE arg)
   switch (code) {
   case WORKER_FOUND_NOTHING:
     /* not unexpected */
+    fprintf(stderr, "SPU worker found nothing\n");
     break;
   case WORKER_FOUND_SOMETHING:
-    fprintf(stderr, "SPU worker found something (%d)\n", miner->params.n);
+    fprintf(stderr, "SPU worker found something\n");
+    break;
+  case WORKER_VERIFY_ERROR:
+    rb_raise(rb_eArgError, "midstate verification failed");
     break;
   default:
     rb_raise(rb_eRuntimeError, "SPE worker signaled strange code (%d)", code);
@@ -106,8 +124,6 @@ VALUE m_run(VALUE self, VALUE arg)
 static
 void i_free(struct spu_miner *miner)
 {
-  fprintf(stderr, "i_free (%p)\n", miner);
-
   spe_context_destroy(miner->spe_context);
 
   free(miner);
@@ -141,5 +157,5 @@ void Init_spu_miner(void)
   rb_define_alloc_func(cSPUMiner, i_allocate);
 
   rb_define_method(cSPUMiner, "initialize", m_initialize, 0);
-  rb_define_method(cSPUMiner, "run", m_run, 1);
+  rb_define_method(cSPUMiner, "run", m_run, 4);
 }
