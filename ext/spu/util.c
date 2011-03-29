@@ -8,6 +8,7 @@
 # include "sha256.h"
 
 uint64_t spu_id;
+int debugging;
 
 # define HEXDIGITS "0123456789abcdef"
 
@@ -26,6 +27,9 @@ void debug(const char *fmt, ...)
 # ifdef DEBUG
   va_list args;
 
+  if (!debugging)
+    return;
+
   va_start(args, fmt);
   fprintf(stderr, "SPU(%08llx): ", spu_id);
   vfprintf(stderr, fmt, args);
@@ -38,6 +42,9 @@ void debug_hash(const hash_t *hash, const char *desc)
 {
 # ifdef DEBUG
   char buf[65];
+
+  if (!debugging)
+    return;
 
   hex(buf, (const char *) hash, 32);
   debug("%s = %s", desc, buf);

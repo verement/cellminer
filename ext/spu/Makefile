@@ -1,9 +1,9 @@
 
 CC		= spu-gcc
-CFLAGS		= -Wall -Werror $(OPTIMIZE) -DDEBUG
+CFLAGS		= -Wall -Werror -Wstrict-aliasing=0 $(OPTIMIZE) -DDEBUG
 OPTIMIZE	= -O3 -funroll-loops -fmodulo-sched -ftree-vectorize
 
-worker.elf: worker.o sha256.o util.o
+worker.elf: worker.o sha256.o util.o search.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 test.elf: test.o sha256.o util.o
@@ -13,7 +13,7 @@ test.elf: test.o sha256.o util.o
 clean:
 	-rm -f *.elf *.o
 
-depend: *.[ch]
+depend.auto: *.[ch]
 	@$(CC) -MM *.c >$@
 
-include depend
+include depend.auto

@@ -1,68 +1,11 @@
 
 # include <stdint.h>
 # include <stddef.h>
-# include <string.h>
-# include <spu_intrinsics.h>
 # include <spu_mfcio.h>
 
 # include "params.h"
-# include "sha256.h"
+# include "search.h"
 # include "util.h"
-
-/*
- * NAME:	verify_midstate()
- * DESCRIPTION:	check that the midstate received is correct
- */
-static
-int verify_midstate(const hash_t *midstate, const uint32_t data[16])
-{
-  hash_t hash;
-
-  sha256_round(hash, data, H0);
-  debug_hash((const hash_t *) &hash, "calculated midstate");
-
-  return memcmp(hash, midstate, sizeof(hash_t)) == 0;
-}
-
-/*
- * NAME:	search()
- * DESCRIPTION:	search for suitable nonce to satisfy target
- */
-static
-int search(uint32_t *M, uint32_t hash1[16], hash_t midstate, hash_t target)
-{
-  return 0;
-}
-
-/*
- * NAME:	work_on()
- * DESCRIPTION:	search for a solution and return 1 if found, 0 otherwise
- */
-static
-int work_on(struct worker_params *params)
-{
-  char buf[257];
-
-  hex(buf, params->data, 128);
-  debug("data     = %s", buf);
-
-  debug_hash((const hash_t *) params->target,   "target  ");
-  debug_hash((const hash_t *) params->midstate, "midstate");
-
-  hex(buf, params->hash1, 64);
-  debug("hash1    = %s", buf);
-
-  if (!verify_midstate((const hash_t *) params->midstate,
-		       (uint32_t *) params->data)) {
-    debug("midstate verification failed");
-    return -1;
-  }
-
-  debug("midstate verified");
-
-  return search(&((uint32_t *) params->data)[16], (uint32_t *) params->hash1,
-		(vec_uint4 *) params->midstate, (vec_uint4 *) params->target);
-}
 
 /*
  * NAME:	dma_get()
@@ -130,6 +73,8 @@ int main(uint64_t speid, uint64_t argp, uint64_t envp)
 
     if (__builtin_expect(dma_params(&params, argp, dma_get), 0))
       return WORKER_DMA_ERROR;
+
+    debugging = params.flags & WORKER_FLAG_DEBUG;
 
     /* do work */
 

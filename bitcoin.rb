@@ -11,7 +11,7 @@ module Bitcoin
     parms.inject(Hash.new) {|h, p| h.merge! Hash[*p.split("=")] }
   end
 
-  def self.rpc_client(server = {})
+  def self.rpc_proxy(server = {})
     conf = self.conf
     default = {
       :userinfo => [conf['rpcuser'], conf['rpcpassword']].join(':'),
@@ -20,10 +20,10 @@ module Bitcoin
       :path => '/'
     }
     uri = URI::HTTP.build(default.merge(server))
-    RPCClient.new(uri)
+    RPCProxy.new(uri)
   end
 
-  class RPCClient
+  class RPCProxy
     attr_reader :url
 
     class JSONRPCException < RuntimeError; end

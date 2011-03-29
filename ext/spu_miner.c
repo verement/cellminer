@@ -1,6 +1,4 @@
 
-# include <stdio.h>
-
 # include <stdlib.h>
 # include <string.h>
 # include <ruby.h>
@@ -13,19 +11,25 @@ struct spu_miner {
   volatile struct worker_params params;
 
   spe_context_ptr_t spe_context;
-  uint32_t entry;
+  uint32_t spe_entry;
 };
 
 static
-VALUE m_initialize(VALUE self)
+VALUE m_initialize(int argc, VALUE *argv, VALUE self)
 {
   struct spu_miner *miner;
   extern spe_program_handle_t spu_worker;
+
+  if (argc < 0 || argc > 1)
+    rb_raise(rb_eArgError, "wrong number of arguments (%d for max 1)", argc);
 
   Data_Get_Struct(self, struct spu_miner, miner);
 
   if (spe_program_load(miner->spe_context, &spu_worker))
     rb_raise(rb_eRuntimeError, "failed to load SPE program");
+
+  if (argc > 0 && RTEST(argv[0]))
+    miner->params.flags |= WORKER_FLAG_DEBUG;
 
   return Qnil;
 }
@@ -37,6 +41,7 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
   spe_stop_info_t stop_info;
   char *stop_reason = "unknown";
   int code = -1;
+  VALUE retval = Qfalse;
 
   Data_Get_Struct(self, struct spu_miner, miner);
 
@@ -63,7 +68,7 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
 
   /* run the SPE context */
 
-  if (spe_context_run(miner->spe_context, &miner->entry, 0,
+  if (spe_context_run(miner->spe_context, &miner->spe_entry, 0,
 		      (void *) &miner->params, 0, &stop_info) < 0)
     rb_raise(rb_eRuntimeError, "failed to run SPE context");
 
@@ -99,26 +104,29 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
   }
 
   if (stop_info.stop_reason != SPE_STOP_AND_SIGNAL) {
-    miner->entry = SPE_DEFAULT_ENTRY;
+    /* restart SPU from main entry point next time it is run */
+    miner->spe_entry = SPE_DEFAULT_ENTRY;
     rb_raise(rb_eRuntimeError, "SPE stopped with %s (%d)", stop_reason, code);
   }
 
   switch (code) {
   case WORKER_FOUND_NOTHING:
-    /* not unexpected */
-    fprintf(stderr, "SPU worker found nothing\n");
     break;
+
   case WORKER_FOUND_SOMETHING:
-    fprintf(stderr, "SPU worker found something\n");
+    /* copy modified data to return value */
+    retval = rb_str_new((const char *) miner->params.data, 128);
     break;
+
   case WORKER_VERIFY_ERROR:
     rb_raise(rb_eArgError, "midstate verification failed");
     break;
+
   default:
     rb_raise(rb_eRuntimeError, "SPE worker signaled strange code (%d)", code);
   };
 
-  return Qnil;
+  return retval;
 }
 
 static
@@ -143,7 +151,9 @@ VALUE i_allocate(VALUE klass)
     rb_raise(rb_eRuntimeError, "failed to create SPE context");
   }
 
-  miner->entry = SPE_DEFAULT_ENTRY;
+  miner->spe_entry = SPE_DEFAULT_ENTRY;
+
+  miner->params.flags = 0;
 
   return Data_Wrap_Struct(klass, 0, i_free, miner);
 }
@@ -156,6 +166,6 @@ void Init_spu_miner(void)
   cSPUMiner = rb_define_class_under(mBitcoin, "SPUMiner", rb_cObject);
   rb_define_alloc_func(cSPUMiner, i_allocate);
 
-  rb_define_method(cSPUMiner, "initialize", m_initialize, 0);
+  rb_define_method(cSPUMiner, "initialize", m_initialize, -1);
   rb_define_method(cSPUMiner, "run", m_run, 4);
 }
