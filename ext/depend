@@ -3,7 +3,7 @@
 spu_worker.o: spu/worker.elf
 	embedspu spu_worker $< $@
 
-spu/worker.elf: spu/*.[chs]
+spu/worker.elf: spu/Makefile spu/*.[chs]
 	$(MAKE) -C spu
 
 clean: spu/clean
@@ -15,4 +15,5 @@ spu/clean:
 depend.auto: *.[ch]
 	@$(CC) -MM *.c >$@
 
+*.o: Makefile
 include depend.auto

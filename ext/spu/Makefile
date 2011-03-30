@@ -21,4 +21,5 @@ clean:
 depend.auto: *.[ch]
 	@$(CC) -MM *.c >$@
 
+*.o: Makefile
 include depend.auto
