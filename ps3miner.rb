@@ -98,11 +98,16 @@ class PS3Miner
     debug "Starting with #{miner}"
 
     loop do
-      # unpack hex strings and fix byte ordering
-      work = Hash[getwork.map {|k, v|
-                    [k.to_sym, [v].pack('H*').unpack('V*').pack('N*')]}]
+      # get work, unpack hex strings and fix byte ordering
+      work = getwork.map do |k, v|
+        k = k.to_sym
+        v = [v].pack('H*')
+        v = (k == :target) ? v.reverse : v.unpack('V*').pack('N*')
+        [k, v]
+      end
+      work = Hash[work]
 
-      if solved = miner.run(work[:data], work[:target].reverse,
+      if solved = miner.run(work[:data], work[:target],
                             work[:midstate], work[:hash1])
         say "Worker found something!"
         # send back to server...
