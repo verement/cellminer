@@ -38,7 +38,7 @@ VALUE run_miner(void *data)
       break;
 
     case WORKER_FOUND_SOMETHING:
-      retval = rb_str_new((const char *) miner->params.data, 128);
+      retval = Qtrue;
       break;
     }
   }
@@ -146,15 +146,20 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
   memcpy((void *) miner->params.midstate, RSTRING_PTR(midstate), 32);
   memcpy((void *) miner->params.hash1,    RSTRING_PTR(hash1),    64);
 
-  /* unlock the global interpreter lock and run the SPE context */
+  /* unlock the Global Interpreter Lock and run the SPE context */
 
   retval = rb_thread_blocking_region(run_miner, miner,
 				     unblock_miner, miner);
 
-  if (NIL_P(retval)) {
+  switch (retval) {
     const char *reason;
     int code;
 
+  case Qtrue:
+    retval = rb_str_new((const char *) miner->params.data, 128);
+    break;
+
+  case Qnil:
     get_stop_reason(&miner->stop_info, &reason, &code);
     rb_raise(rb_eRuntimeError,
 	     "SPE worker stopped with %s (0x%08x)", reason, code);
