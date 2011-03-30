@@ -105,20 +105,16 @@ static
 VALUE m_initialize(int argc, VALUE *argv, VALUE self)
 {
   struct spu_miner *miner;
-  extern spe_program_handle_t spu_worker;
 
   if (argc < 0 || argc > 1)
     rb_raise(rb_eArgError, "wrong number of arguments (%d for max 1)", argc);
 
   Data_Get_Struct(self, struct spu_miner, miner);
 
-  if (spe_program_load(miner->spe_context, &spu_worker))
-    rb_raise(rb_eRuntimeError, "failed to load SPE program");
-
   if (argc > 0 && RTEST(argv[0]))
     miner->params.flags |= WORKER_FLAG_DEBUG;
 
-  return Qnil;
+  return self;
 }
 
 static
@@ -160,7 +156,8 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
     int code;
 
     get_stop_reason(&miner->stop_info, &reason, &code);
-    rb_raise(rb_eRuntimeError, "SPE worker stopped with %s (%d)", reason, code);
+    rb_raise(rb_eRuntimeError,
+	     "SPE worker stopped with %s (0x%08x)", reason, code);
   }
 
   return retval;
@@ -178,6 +175,7 @@ static
 VALUE i_allocate(VALUE klass)
 {
   struct spu_miner *miner;
+  extern spe_program_handle_t spu_worker;
 
   if (posix_memalign((void **) &miner, 128, sizeof(*miner)))
     rb_raise(rb_eRuntimeError, "unable to allocate aligned memory");
@@ -185,7 +183,15 @@ VALUE i_allocate(VALUE klass)
   miner->spe_context = spe_context_create(0, 0);
   if (miner->spe_context == 0) {
     free(miner);
+
     rb_raise(rb_eRuntimeError, "failed to create SPE context");
+  }
+
+  if (spe_program_load(miner->spe_context, &spu_worker)) {
+    spe_context_destroy(miner->spe_context);
+    free(miner);
+
+    rb_raise(rb_eRuntimeError, "failed to load SPE program");
   }
 
   miner->spe_entry = SPE_DEFAULT_ENTRY;
