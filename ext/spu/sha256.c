@@ -276,7 +276,7 @@ int64_t sha256_search(uint32_t data[32], const hash_t midstate,
 
   /* do the search, four at a time */
 
-  for (nonce = 0; nonce <= 0x100000000ULL; nonce += 4) {
+  for (nonce = 0; nonce < MAX_NONCE; nonce += 4) {
     W[0] = W0[0];
     W[1] = W0[1];
     W[2] = W0[2];
