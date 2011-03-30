@@ -66,6 +66,7 @@ class PS3Miner
     threads = []
     options[:threads].times do
       threads << Thread.new { mine }
+      sleep 2
     end
 
     threads.each {|thread| thread.join }
@@ -93,8 +94,6 @@ class PS3Miner
 
   def mine
     miner = Bitcoin::SPUMiner.new(options[:debug])
-
-    sleep rand() * 2 * options[:threads]
 
     debug "Starting with #{miner}"
 
