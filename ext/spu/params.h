@@ -1,6 +1,6 @@
 
-# ifndef SPU_PARAMS_H
-# define SPU_PARAMS_H
+# ifndef PARAMS_H
+# define PARAMS_H
 
 struct worker_params {
   char data[128];

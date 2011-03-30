@@ -1,6 +1,6 @@
 
-# ifndef SEARCH_H
-# define SEARCH_H
+# ifndef WORKER_H
+# define WORKER_H
 
 # include "params.h"
 
