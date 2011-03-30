@@ -17,14 +17,14 @@ static
 int search(uint32_t data[32], uint32_t hash1[16], hash_t target)
 {
   SHA256_CTX midstate, hash1_init;
-  uint32_t nonce;
+  uint64_t nonce;
 
   SHA256_Init(&midstate);
   SHA256_Update_fast(&midstate, (vec_uchar16 *) data, 64);
 
   SHA256_Init(&hash1_init);
 
-  for (nonce = 0; nonce <= 0xffffffff; ++nonce) {
+  for (nonce = 0; nonce < 0x100000000ULL; ++nonce) {
     SHA256_CTX ctx = midstate, hash1 = hash1_init;
     hash_t hash;
     char hexdigest[65];

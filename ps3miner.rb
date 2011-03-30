@@ -94,6 +94,8 @@ class PS3Miner
   def mine
     miner = Bitcoin::SPUMiner.new(options[:debug])
 
+    sleep rand() * 2 * options[:threads]
+
     debug "Starting with #{miner}"
 
     loop do
@@ -105,26 +107,23 @@ class PS3Miner
                             work[:midstate], work[:hash1])
         say "Worker found something!"
         # send back to server...
-        response = nil;  # rpc.getwork(solved)
+        data = solved.unpack('N*').pack('V*').unpack('H*').first
+        response = rpc.getwork(data)
 
         mutex.synchronize do
-          puts "Solved? data ="
-          pp solved.unpack('H*')
-          puts "Server response ="
-          pp response
+          puts "Solved? (%s) data =" % response
+          pp data
         end
       else
         say "Worker found nothing"
       end
 
-      # only one iteration for now
-      return
+      return if options[:test]
     end
   end
 
   def getwork
-    work = options[:test] ? testwork : rpc.getwork
-    dump work, "work"
+    options[:test] ? testwork : rpc.getwork
   end
 
   def testwork

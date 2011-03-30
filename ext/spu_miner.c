@@ -15,58 +15,13 @@ struct spu_miner {
 };
 
 static
-VALUE m_initialize(int argc, VALUE *argv, VALUE self)
+VALUE run_miner(void *data)
 {
-  struct spu_miner *miner;
-  extern spe_program_handle_t spu_worker;
-
-  if (argc < 0 || argc > 1)
-    rb_raise(rb_eArgError, "wrong number of arguments (%d for max 1)", argc);
-
-  Data_Get_Struct(self, struct spu_miner, miner);
-
-  if (spe_program_load(miner->spe_context, &spu_worker))
-    rb_raise(rb_eRuntimeError, "failed to load SPE program");
-
-  if (argc > 0 && RTEST(argv[0]))
-    miner->params.flags |= WORKER_FLAG_DEBUG;
-
-  return Qnil;
-}
-
-static
-VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
-{
-  struct spu_miner *miner;
+  struct spu_miner *miner = data;
   spe_stop_info_t stop_info;
   char *stop_reason = "unknown";
   int code = -1;
   VALUE retval = Qfalse;
-
-  Data_Get_Struct(self, struct spu_miner, miner);
-
-  /* prepare parameters */
-
-  StringValue(data);
-  StringValue(target);
-  StringValue(midstate);
-  StringValue(hash1);
-
-  if (RSTRING_LEN(data) != 128)
-    rb_raise(rb_eArgError, "data must be 128 bytes");
-  if (RSTRING_LEN(target) != 32)
-    rb_raise(rb_eArgError, "target must be 32 bytes");
-  if (RSTRING_LEN(midstate) != 32)
-    rb_raise(rb_eArgError, "midstate must be 32 bytes");
-  if (RSTRING_LEN(hash1) != 64)
-    rb_raise(rb_eArgError, "hash1 must be 64 bytes");
-
-  memcpy((void *) miner->params.data,     RSTRING_PTR(data),    128);
-  memcpy((void *) miner->params.target,   RSTRING_PTR(target),   32);
-  memcpy((void *) miner->params.midstate, RSTRING_PTR(midstate), 32);
-  memcpy((void *) miner->params.hash1,    RSTRING_PTR(hash1),    64);
-
-  /* run the SPE context */
 
   if (spe_context_run(miner->spe_context, &miner->spe_entry, 0,
 		      (void *) &miner->params, 0, &stop_info) < 0)
@@ -127,6 +82,66 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
   };
 
   return retval;
+}
+
+static
+void unblock_miner(void *data)
+{
+  /* ... ? */
+}
+
+static
+VALUE m_initialize(int argc, VALUE *argv, VALUE self)
+{
+  struct spu_miner *miner;
+  extern spe_program_handle_t spu_worker;
+
+  if (argc < 0 || argc > 1)
+    rb_raise(rb_eArgError, "wrong number of arguments (%d for max 1)", argc);
+
+  Data_Get_Struct(self, struct spu_miner, miner);
+
+  if (spe_program_load(miner->spe_context, &spu_worker))
+    rb_raise(rb_eRuntimeError, "failed to load SPE program");
+
+  if (argc > 0 && RTEST(argv[0]))
+    miner->params.flags |= WORKER_FLAG_DEBUG;
+
+  return Qnil;
+}
+
+static
+VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
+{
+  struct spu_miner *miner;
+
+  Data_Get_Struct(self, struct spu_miner, miner);
+
+  /* prepare parameters */
+
+  StringValue(data);
+  StringValue(target);
+  StringValue(midstate);
+  StringValue(hash1);
+
+  if (RSTRING_LEN(data) != 128)
+    rb_raise(rb_eArgError, "data must be 128 bytes");
+  if (RSTRING_LEN(target) != 32)
+    rb_raise(rb_eArgError, "target must be 32 bytes");
+  if (RSTRING_LEN(midstate) != 32)
+    rb_raise(rb_eArgError, "midstate must be 32 bytes");
+  if (RSTRING_LEN(hash1) != 64)
+    rb_raise(rb_eArgError, "hash1 must be 64 bytes");
+
+  memcpy((void *) miner->params.data,     RSTRING_PTR(data),    128);
+  memcpy((void *) miner->params.target,   RSTRING_PTR(target),   32);
+  memcpy((void *) miner->params.midstate, RSTRING_PTR(midstate), 32);
+  memcpy((void *) miner->params.hash1,    RSTRING_PTR(hash1),    64);
+
+  /* unlock the global interpreter lock and run the SPE context */
+
+  return rb_thread_blocking_region(run_miner, miner,
+				   unblock_miner, miner);
 }
 
 static
