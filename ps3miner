@@ -3,4 +3,8 @@
 require 'rubygems'
 require './ps3miner.rb'
 
-PS3Miner.new(ARGV).main
+begin
+  PS3Miner.new(ARGV).main
+rescue Interrupt
+  $stderr.puts "Interrupt"
+end

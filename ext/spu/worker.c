@@ -1,8 +1,10 @@
 
 # include <stdint.h>
 # include <stddef.h>
+# include <stdlib.h>
 # include <spu_mfcio.h>
 
+# include "spu_slih.h"
 # include "params.h"
 # include "search.h"
 # include "util.h"
@@ -54,6 +56,20 @@ int dma_params(struct worker_params *params, uint64_t ea,
 }
 
 /*
+ * NAME:	signal_handler()
+ * DESCRIPTION:	IRQ handler for signal notification
+ */
+static
+unsigned int signal_handler(unsigned int events)
+{
+  if (spu_stat_signal1() &&
+      spu_read_signal1())
+    spu_stop(WORKER_IRQ_SIGNAL);
+
+  return events & ~MFC_SIGNAL_NOTIFY_1_EVENT;
+}
+
+/*
  * NAME:	main()
  * DESCRIPTION:	entry point for SPU program
  */
@@ -61,13 +77,17 @@ int main(uint64_t speid, uint64_t argp, uint64_t envp)
 {
   spu_id = speid;
 
+  /* set up interrupt handler */
+
+  spu_slih_register(MFC_SIGNAL_NOTIFY_1_EVENT, signal_handler);
+  spu_write_event_mask(MFC_SIGNAL_NOTIFY_1_EVENT);
+  spu_ienable();
+
   /* loop forever loading parameters and doing work */
 
   while (1) {
     struct worker_params params __attribute__ ((aligned (128)));
     int result;
-
-    debug("running (0x%llx)", argp);
 
     /* load parameters */
 

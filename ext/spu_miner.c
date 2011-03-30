@@ -12,74 +12,36 @@ struct spu_miner {
 
   spe_context_ptr_t spe_context;
   uint32_t spe_entry;
+  spe_stop_info_t stop_info;
 };
 
 static
 VALUE run_miner(void *data)
 {
   struct spu_miner *miner = data;
-  spe_stop_info_t stop_info;
-  char *stop_reason = "unknown";
-  int code = -1;
-  VALUE retval = Qfalse;
+  VALUE retval = Qnil;
 
-  if (spe_context_run(miner->spe_context, &miner->spe_entry, 0,
-		      (void *) &miner->params, 0, &stop_info) < 0)
-    rb_raise(rb_eRuntimeError, "failed to run SPE context");
+  spe_context_run(miner->spe_context, &miner->spe_entry, 0,
+		  (void *) &miner->params, 0, &miner->stop_info);
 
-  switch (stop_info.stop_reason) {
-  case SPE_EXIT:
-    stop_reason = "SPE_EXIT";
-    code = stop_info.result.spe_exit_code;
-    break;
-  case SPE_STOP_AND_SIGNAL:
-    stop_reason = "SPE_STOP_AND_SIGNAL";
-    code = stop_info.result.spe_signal_code;
-    break;
-  case SPE_RUNTIME_ERROR:
-    stop_reason = "SPE_RUNTIME_ERROR";
-    code = stop_info.result.spe_runtime_error;
-    break;
-  case SPE_RUNTIME_EXCEPTION:
-    stop_reason = "SPE_RUNTIME_EXCEPTION";
-    code = stop_info.result.spe_runtime_exception;
-    break;
-  case SPE_RUNTIME_FATAL:
-    stop_reason = "SPE_RUNTIME_FATAL";
-    code = stop_info.result.spe_runtime_fatal;
-    break;
-  case SPE_CALLBACK_ERROR:
-    stop_reason = "SPE_CALLBACK_ERROR";
-    code = stop_info.result.spe_callback_error;
-    break;
-  case SPE_ISOLATION_ERROR:
-    stop_reason = "SPE_ISOLATION_ERROR";
-    code = stop_info.result.spe_isolation_error;
-    break;
-  }
-
-  if (stop_info.stop_reason != SPE_STOP_AND_SIGNAL) {
-    /* restart SPU from main entry point next time it is run */
+  if (miner->stop_info.stop_reason != SPE_STOP_AND_SIGNAL)
+    /* restart on next run */
     miner->spe_entry = SPE_DEFAULT_ENTRY;
-    rb_raise(rb_eRuntimeError, "SPE stopped with %s (%d)", stop_reason, code);
+  else {
+    switch (miner->stop_info.result.spe_signal_code) {
+    case WORKER_IRQ_SIGNAL:
+      miner->spe_entry = SPE_DEFAULT_ENTRY;
+      /* fall through */
+
+    case WORKER_FOUND_NOTHING:
+      retval = Qfalse;
+      break;
+
+    case WORKER_FOUND_SOMETHING:
+      retval = rb_str_new((const char *) miner->params.data, 128);
+      break;
+    }
   }
-
-  switch (code) {
-  case WORKER_FOUND_NOTHING:
-    break;
-
-  case WORKER_FOUND_SOMETHING:
-    /* copy modified data to return value */
-    retval = rb_str_new((const char *) miner->params.data, 128);
-    break;
-
-  case WORKER_VERIFY_ERROR:
-    rb_raise(rb_eArgError, "midstate verification failed");
-    break;
-
-  default:
-    rb_raise(rb_eRuntimeError, "SPE worker signaled strange code (%d)", code);
-  };
 
   return retval;
 }
@@ -87,7 +49,56 @@ VALUE run_miner(void *data)
 static
 void unblock_miner(void *data)
 {
-  /* ... ? */
+  struct spu_miner *miner = data;
+
+  /* signal SPE worker to stop */
+  spe_signal_write(miner->spe_context, SPE_SIG_NOTIFY_REG_1, 1);
+}
+
+static
+void get_stop_reason(const spe_stop_info_t *stop_info,
+		     const char **reason, int *code)
+{
+  switch (stop_info->stop_reason) {
+  case SPE_EXIT:
+    *reason = "SPE_EXIT";
+    *code = stop_info->result.spe_exit_code;
+    break;
+
+  case SPE_STOP_AND_SIGNAL:
+    *reason = "SPE_STOP_AND_SIGNAL";
+    *code = stop_info->result.spe_signal_code;
+    break;
+
+  case SPE_RUNTIME_ERROR:
+    *reason = "SPE_RUNTIME_ERROR";
+    *code = stop_info->result.spe_runtime_error;
+    break;
+
+  case SPE_RUNTIME_EXCEPTION:
+    *reason = "SPE_RUNTIME_EXCEPTION";
+    *code = stop_info->result.spe_runtime_exception;
+    break;
+
+  case SPE_RUNTIME_FATAL:
+    *reason = "SPE_RUNTIME_FATAL";
+    *code = stop_info->result.spe_runtime_fatal;
+    break;
+
+  case SPE_CALLBACK_ERROR:
+    *reason = "SPE_CALLBACK_ERROR";
+    *code = stop_info->result.spe_callback_error;
+    break;
+
+  case SPE_ISOLATION_ERROR:
+    *reason = "SPE_ISOLATION_ERROR";
+    *code = stop_info->result.spe_isolation_error;
+    break;
+
+  default:
+    *reason = "unknown";
+    *code = -1;
+  }
 }
 
 static
@@ -114,6 +125,7 @@ static
 VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
 {
   struct spu_miner *miner;
+  VALUE retval;
 
   Data_Get_Struct(self, struct spu_miner, miner);
 
@@ -140,8 +152,18 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
 
   /* unlock the global interpreter lock and run the SPE context */
 
-  return rb_thread_blocking_region(run_miner, miner,
-				   unblock_miner, miner);
+  retval = rb_thread_blocking_region(run_miner, miner,
+				     unblock_miner, miner);
+
+  if (NIL_P(retval)) {
+    const char *reason;
+    int code;
+
+    get_stop_reason(&miner->stop_info, &reason, &code);
+    rb_raise(rb_eRuntimeError, "SPE worker stopped with %s (%d)", reason, code);
+  }
+
+  return retval;
 }
 
 static
