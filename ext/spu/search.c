@@ -24,7 +24,7 @@ int search(uint32_t data[32], uint32_t hash1[16], hash_t target)
 
   SHA256_Init(&hash1_init);
 
-  for (nonce = 0; nonce < 0x100000000ULL; ++nonce) {
+  for (nonce = 0; nonce < 0x10000000ULL; ++nonce) {
     SHA256_CTX ctx = midstate, hash1 = hash1_init;
     hash_t hash;
     char hexdigest[65];
@@ -88,8 +88,6 @@ int verify_midstate(const hash_t *midstate, const uint32_t data[16])
 
   sha256_round(hash, data, H0);
 
-  debug_hash((const hash_t *) &hash, "calculated midstate");
-
   return memcmp(hash, midstate, sizeof(hash_t)) == 0;
 }
 
@@ -115,8 +113,6 @@ int work_on(struct worker_params *params)
     debug("midstate verification failed");
     return -1;
   }
-
-  debug("midstate verified");
 
   return search((uint32_t *) params->data, (uint32_t *) params->hash1,
 		(vec_uint4 *) params->target);

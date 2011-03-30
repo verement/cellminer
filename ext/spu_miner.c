@@ -16,6 +16,22 @@ struct spu_miner {
 };
 
 static
+VALUE m_initialize(int argc, VALUE *argv, VALUE self)
+{
+  struct spu_miner *miner;
+
+  if (argc < 0 || argc > 1)
+    rb_raise(rb_eArgError, "wrong number of arguments (%d for max 1)", argc);
+
+  Data_Get_Struct(self, struct spu_miner, miner);
+
+  if (argc > 0 && RTEST(argv[0]))
+    miner->params.flags |= WORKER_FLAG_DEBUG;
+
+  return self;
+}
+
+static
 VALUE run_miner(void *data)
 {
   struct spu_miner *miner = data;
@@ -30,7 +46,9 @@ VALUE run_miner(void *data)
   else {
     switch (miner->stop_info.result.spe_signal_code) {
     case WORKER_IRQ_SIGNAL:
+      /* SPE is responding to our stop signal; restart on next run */
       miner->spe_entry = SPE_DEFAULT_ENTRY;
+
       /* fall through */
 
     case WORKER_FOUND_NOTHING:
@@ -96,25 +114,9 @@ void get_stop_reason(const spe_stop_info_t *stop_info,
     break;
 
   default:
-    *reason = "unknown";
+    *reason = "unknown reason";
     *code = -1;
   }
-}
-
-static
-VALUE m_initialize(int argc, VALUE *argv, VALUE self)
-{
-  struct spu_miner *miner;
-
-  if (argc < 0 || argc > 1)
-    rb_raise(rb_eArgError, "wrong number of arguments (%d for max 1)", argc);
-
-  Data_Get_Struct(self, struct spu_miner, miner);
-
-  if (argc > 0 && RTEST(argv[0]))
-    miner->params.flags |= WORKER_FLAG_DEBUG;
-
-  return self;
 }
 
 static
@@ -161,6 +163,15 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
 
   case Qnil:
     get_stop_reason(&miner->stop_info, &reason, &code);
+
+    if (miner->stop_info.stop_reason == SPE_STOP_AND_SIGNAL &&
+	code == WORKER_VERIFY_ERROR)
+      rb_raise(rb_eArgError, "midstate verification failed");
+
+    if (miner->stop_info.stop_reason == SPE_EXIT &&
+	code == WORKER_DMA_ERROR)
+      rb_raise(rb_eRuntimeError, "SPE encountered DMA error");
+
     rb_raise(rb_eRuntimeError,
 	     "SPE worker stopped with %s (0x%08x)", reason, code);
   }

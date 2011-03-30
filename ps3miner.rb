@@ -2,10 +2,10 @@
 require 'optparse'
 require 'pp'
 
-require './bitcoin'
-require './ext/spu_miner'
+require './bitcoin.rb'
+require './ext/spu_miner.so'
 
-require './sha256'
+require './sha256.rb'
 
 class PS3Miner
   attr_accessor :options

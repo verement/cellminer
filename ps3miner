@@ -1,4 +1,5 @@
 #! /usr/bin/env ruby1.9.1
+# -*- mode: ruby -*-
 
 require 'rubygems'
 require './ps3miner.rb'
