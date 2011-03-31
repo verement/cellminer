@@ -232,7 +232,7 @@ class SHA256
   end
 
   def digest
-    @H.pack('N*')
+    @H.map {|v| v.value }.pack('N*')
   end
 
   def hexdigest
