@@ -343,16 +343,9 @@ int64_t sha256_search(uint32_t data[32], const hash_t midstate,
       ROUND(t, a2, b2, c2, d2, e2, f2, g2, h2);
     }
 
-    a2 = ADD(a2, VHASHWORD(H0, 0));
-    b2 = ADD(b2, VHASHWORD(H0, 1));
-    c2 = ADD(c2, VHASHWORD(H0, 2));
-    d2 = ADD(d2, VHASHWORD(H0, 3));
-    e2 = ADD(e2, VHASHWORD(H0, 4));
-    f2 = ADD(f2, VHASHWORD(H0, 5));
-    g2 = ADD(g2, VHASHWORD(H0, 6));
     h2 = ADD(h2, VHASHWORD(H0, 7));
 
-    /* second SHA-256 complete */
+    /* second SHA-256 (almost) complete */
 
     /* reverse the endian of the last word vector */
     a = spu_shuffle(h2, h2, reverse_endian);
@@ -363,10 +356,20 @@ int64_t sha256_search(uint32_t data[32], const hash_t midstate,
     if (__builtin_expect(spu_extract(spu_gather(borrow), 0) == 0, 1))
       continue;
 
-    /* we may have something interesting; do full subtraction */
+    /* we may have something interesting */
 
     debug("interesting nonce %08llx+3", nonce);
 
+    /* first complete the SHA-256 */
+    a2 = ADD(a2, VHASHWORD(H0, 0));
+    b2 = ADD(b2, VHASHWORD(H0, 1));
+    c2 = ADD(c2, VHASHWORD(H0, 2));
+    d2 = ADD(d2, VHASHWORD(H0, 3));
+    e2 = ADD(e2, VHASHWORD(H0, 4));
+    f2 = ADD(f2, VHASHWORD(H0, 5));
+    g2 = ADD(g2, VHASHWORD(H0, 6));
+
+    /* now do the full subtraction */
     h = spu_shuffle(a2, a2, reverse_endian);
     borrow = spu_genb(th, h);
     g = spu_shuffle(b2, b2, reverse_endian);
