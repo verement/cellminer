@@ -295,14 +295,14 @@ int64_t sha256_search(uint32_t data[32], const hash_t midstate,
       ROUND(t, a, b, c, d, e, f, g, h);
     }
 
-    a = ADD(a, VHASHWORD(midstate, 0));
-    b = ADD(b, VHASHWORD(midstate, 1));
-    c = ADD(c, VHASHWORD(midstate, 2));
-    d = ADD(d, VHASHWORD(midstate, 3));
-    e = ADD(e, VHASHWORD(midstate, 4));
-    f = ADD(f, VHASHWORD(midstate, 5));
-    g = ADD(g, VHASHWORD(midstate, 6));
-    h = ADD(h, VHASHWORD(midstate, 7));
+    a = ADD(a, midstate.words[0]);
+    b = ADD(b, midstate.words[1]);
+    c = ADD(c, midstate.words[2]);
+    d = ADD(d, midstate.words[3]);
+    e = ADD(e, midstate.words[4]);
+    f = ADD(f, midstate.words[5]);
+    g = ADD(g, midstate.words[6]);
+    h = ADD(h, midstate.words[7]);
 
     /* first SHA-256 complete */
 
@@ -343,7 +343,7 @@ int64_t sha256_search(uint32_t data[32], const hash_t midstate,
       ROUND(t, a2, b2, c2, d2, e2, f2, g2, h2);
     }
 
-    h2 = ADD(h2, VHASHWORD(H0, 7));
+    h2 = ADD(h2, H0.words[7]);
 
     /* second SHA-256 (almost) complete */
 
@@ -361,13 +361,13 @@ int64_t sha256_search(uint32_t data[32], const hash_t midstate,
     debug("interesting nonce %08llx+3", nonce);
 
     /* first complete the SHA-256 */
-    a2 = ADD(a2, VHASHWORD(H0, 0));
-    b2 = ADD(b2, VHASHWORD(H0, 1));
-    c2 = ADD(c2, VHASHWORD(H0, 2));
-    d2 = ADD(d2, VHASHWORD(H0, 3));
-    e2 = ADD(e2, VHASHWORD(H0, 4));
-    f2 = ADD(f2, VHASHWORD(H0, 5));
-    g2 = ADD(g2, VHASHWORD(H0, 6));
+    a2 = ADD(a2, H0.words[0]);
+    b2 = ADD(b2, H0.words[1]);
+    c2 = ADD(c2, H0.words[2]);
+    d2 = ADD(d2, H0.words[3]);
+    e2 = ADD(e2, H0.words[4]);
+    f2 = ADD(f2, H0.words[5]);
+    g2 = ADD(g2, H0.words[6]);
 
     /* now do the full subtraction */
     h = spu_shuffle(a2, a2, reverse_endian);
