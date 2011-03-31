@@ -14,6 +14,12 @@ worker.elf: main.o worker.o sha256.o util.o spu_slih.o spu_flih.o
 test.elf: test.o sha256.o util.o
 	$(CC) -o $@ $(LDFLAGS) $^
 
+%.s: %.c
+	$(CC) -S $(CFLAGS) -c $<
+
+%-debug.s: %.c
+	$(CC) -S -g $(CFLAGS) -c $< -o $@
+
 .PHONY: clean
 clean:
 	-rm -f *.elf *.o
