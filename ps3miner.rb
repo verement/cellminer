@@ -20,6 +20,16 @@ class PS3Miner
     OptionParser.new do |opts|
       opts.banner = "Usage: #{$0} [options] [server]"
 
+      opts.on("-u", "--username USER", String,
+              "RPC Username") do |username|
+        options[:username] = username
+      end
+
+      opts.on("-p", "--password PASS", String,
+              "RPC Password") do |password|
+        options[:password] = password
+      end
+
       opts.on("-t", "--threads N", Integer,
               "Number of SPU threads to start") do |n|
         options[:threads] = n
@@ -47,7 +57,15 @@ class PS3Miner
         'localhost'
       end
 
-    @rpc = Bitcoin.rpc_proxy(:host => server)
+    host, port = server.split(':')
+
+    params = {:host => host}
+    params[:port] = port.to_i if port
+    if options[:username] or options[:password]
+      params[:userinfo] = [options[:username], options[:password]].join(':')
+    end
+
+    @rpc = Bitcoin.rpc_proxy(params)
 
     @mutex = Mutex.new
   end
@@ -58,8 +76,11 @@ class PS3Miner
       exit
     end
 
-    puts "Current block count is #{rpc.getblockcount}"
-    puts "Current difficulty is #{rpc.getdifficulty}"
+    begin
+      puts "Current block count is #{rpc.getblockcount}"
+      puts "Current difficulty is #{rpc.getdifficulty}"
+    rescue RestClient::ResourceNotFound
+    end
 
     puts "Starting #{options[:threads]} mining thread(s)..."
 
@@ -97,6 +118,9 @@ class PS3Miner
 
     debug "Starting with #{miner}"
 
+    last_block  = nil
+    last_target = nil
+
     loop do
       # get work, unpack hex strings and fix byte ordering
       work = getwork.map do |k, v|
@@ -107,19 +131,29 @@ class PS3Miner
       end
       work = Hash[work]
 
+      prev_block = work[:data][4..35].reverse.unpack('H*').first
+      target = work[:target].unpack('H*').first
+
+      status = "Got work..."
+      if prev_block != last_block
+        status << "\n    prev = %s" % prev_block
+        last_block = prev_block
+      end
+      if target != last_target
+        status << "\n  target = %s" % target
+        last_target = target
+      end
+
+      say status
+
       if solved = miner.run(work[:data], work[:target],
                             work[:midstate], work[:hash1])
-        say "Worker found something!"
         # send back to server...
         data = solved.unpack('N*').pack('V*').unpack('H*').first
-        response = rpc.getwork(data)
+        response = rpc.getwork(data) rescue nil
 
-        mutex.synchronize do
-          puts "Solved? (%s) data =" % response
-          pp data
-        end
-      else
-        say "Worker found nothing"
+        say "Solved? (%s)\n    data = %s\n    hash = %s\n  target = %s" %
+          [response, data, block_hash(solved), target]
       end
 
       return if options[:test]
@@ -128,6 +162,14 @@ class PS3Miner
 
   def getwork
     options[:test] ? testwork : rpc.getwork
+  end
+
+  def block_hash(data)
+    hash0 = SHA256.new.update(data)
+    hash1 = [UInt256.new(hash0.hexdigest).byte_string,
+             0x80000000, 0, 0, 0, 0, 0, 0, 0x100].pack('a32N8')
+    hash1 = SHA256.new.update(hash1)
+    hash1.digest.reverse.unpack('H*').first
   end
 
   def testwork
