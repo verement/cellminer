@@ -147,12 +147,14 @@ vec_uint4 vec_sigma1(vec_uint4 x)
       ADD(W[(t - 7) % 16],					\
 	  ADD(sigma0(W[(t - 15) % 16]),				\
 	      W[(t - 16) % 16])))
+
 # define T1(t, e, f, g, h)					\
   ADD(h,							\
       ADD(Sigma1(e),						\
 	  ADD(Ch(e, f, g),					\
 	      ADD(W[t % 16],					\
 		  K[t]))))
+
 # define T2(a, b, c)						\
   ADD(Sigma0(a), Maj(a, b, c))
 
@@ -358,7 +360,9 @@ int64_t sha256_search(uint32_t data[32], const hash_t midstate,
 
     /* we may have something interesting */
 
+# ifdef DEBUG
     debug("interesting nonce %08llx+3", nonce);
+# endif
 
     /* first complete the SHA-256 */
     a2 = ADD(a2, H0.words[0]);
@@ -395,7 +399,7 @@ int64_t sha256_search(uint32_t data[32], const hash_t midstate,
     /* we have a winner */
 
     return (uint32_t) nonce +
-      spu_extract(spu_cntlz(spu_promote(solution, 0)), 0) - 28;
+      (spu_extract(spu_cntlz(spu_promote(solution, 0)), 0) - 28);
   }
 
   return -1;
