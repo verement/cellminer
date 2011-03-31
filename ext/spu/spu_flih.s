@@ -1,15 +1,17 @@
-	# max. size needed to protect unallocated stack space
+	/* max. size needed to protect unallocated stack space */
 	.set STACK_SKIP, 125
 
-	.extern spu_slih_handlers
-	.global spu_flih
-
-	.section .interrupt
+	.section .interrupt, "ax", @progbits
 	.align 3
 
+	.global spu_flih
+
 spu_flih:
-	stqd	$SP, -(STACK_SKIP+82)*16($SP)	# save back-chain pointer
-	stqd	$0,  -(STACK_SKIP+80)*16($SP)	# save volatile regs 0, 2-79
+	/* save back-chain pointer */
+	stqd	$SP, -(STACK_SKIP+82)*16($SP)
+
+	/* save volatile registers 0, 2-79 */
+	stqd	$0,  -(STACK_SKIP+80)*16($SP)
 	stqd	$2,  -(STACK_SKIP+ 2)*16($SP)
 	stqd	$3,  -(STACK_SKIP+ 3)*16($SP)
 	stqd	$4,  -(STACK_SKIP+ 4)*16($SP)
@@ -88,15 +90,21 @@ spu_flih:
 	stqd	$77, -(STACK_SKIP+77)*16($SP)
 	stqd	$78, -(STACK_SKIP+78)*16($SP)
 	stqd	$79, -(STACK_SKIP+79)*16($SP)
+
+	/* save event mask on the stack */
 	rdch	$6, $SPU_RdEventMask
-	stqd	$6,  -(STACK_SKIP+ 1)*16($SP)	# save event mask on stack
+	stqd	$6,  -(STACK_SKIP+ 1)*16($SP)
+
+	/* disable and acknowledge current pending events */
 	rdch	$3, $SPU_RdEventStat
-	andc	$7, $6, $3		# clear current pending
-					#     event bits in mask
-	wrch	$SPU_WrEventMask, $7	# disable current pending events
-	wrch	$SPU_WrEventAck, $3	# ack current pending events
-	il	$2, -(STACK_SKIP+82)*16	# stack frame size
-	a	$SP, $SP, $2		# instantiate flih stack frame
+	andc	$7, $6, $3
+	wrch	$SPU_WrEventMask, $7
+	wrch	$SPU_WrEventAck, $3
+
+	/* instantiate flih stack frame */
+	il	$2, -(STACK_SKIP+82)*16
+	a	$SP, $SP, $2
+
 next_event:
 	clz	$4, $3			# determine next (left-most) event
 	ila	$5, spu_slih_handlers	# address of slih function table
@@ -105,9 +113,13 @@ next_event:
 	rotqby	$5, $5, $4		# rotate slih pointer to preferred slot
 	bisl	$0, $5			# branch-and-link to slih function
 	brnz	$3, next_event		# more events? ($3 is slih return value)
+
+	/* re-establish previous event mask */
 	lqd	$6,  81*16($SP)
-	wrch	$SPU_WrEventMask, $6	# re-establish previous event mask
-	lqd	$79,  3*16($SP)		# restore volatile registers 79-2, 0
+	wrch	$SPU_WrEventMask, $6
+
+	/* restore volatile registers 79-2, 0 */
+	lqd	$79,  3*16($SP)
 	lqd	$78,  4*16($SP)
 	lqd	$77,  5*16($SP)
 	lqd	$76,  6*16($SP)
@@ -186,5 +198,9 @@ next_event:
 	lqd	$3,  79*16($SP)
 	lqd	$2,  80*16($SP)
 	lqd	$0,   2*16($SP)
-	lqd	$SP,  0*16($SP)		# restore stack ptr from back chain ptr
-	irete				# Return through SRR0, re-enable IRQs
+
+	/* restore stack pointer from back-chain pointer */
+	lqd	$SP,  0*16($SP)
+
+	/* return through SRR0, re-enable interrupts */
+	irete
