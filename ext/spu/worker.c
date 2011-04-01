@@ -37,16 +37,19 @@ int work_on(struct worker_params *params)
   debug_hash((const hash_t *) params->target,   "target  ");
   debug_hash((const hash_t *) params->midstate, "midstate");
 
-  hex(buf, params->hash1, 64);
-  debug("hash1    = %s", buf);
-
   if (!verify_midstate(*(const hash_t *) params->midstate, data)) {
     debug("midstate verification failed");
     return -1;
   }
 
-  nonce = sha256_search(data, *(hash_t *) params->midstate,
-			*(hash_t *) params->target);
+  debug("start_nonce = %08lx, range = %08lx",
+	params->start_nonce, params->range);
+
+  nonce = sha256_search(data,
+			*(hash_t *) params->target,
+			*(hash_t *) params->midstate,
+			params->start_nonce,
+			params->range);
   if (nonce < 0)
     return 0;
 

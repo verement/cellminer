@@ -1,5 +1,5 @@
 
-DEFINE		= -DDEBUG -DMAX_NONCE=0x8000000
+DEFINE		= -DDEBUG
 OPTIMIZE	= -O3 -funroll-loops -fmodulo-sched -ftree-vectorize
 WARN		= -Wall -Werror -Wstrict-aliasing=0
 

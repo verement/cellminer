@@ -1,5 +1,6 @@
 
 # include <stdlib.h>
+# include <stdint.h>
 # include <string.h>
 # include <ruby.h>
 # include <libspe2.h>
@@ -120,7 +121,8 @@ void get_stop_reason(const spe_stop_info_t *stop_info,
 }
 
 static
-VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
+VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate,
+	    VALUE start_nonce, VALUE range)
 {
   struct spu_miner *miner;
   VALUE retval;
@@ -132,7 +134,6 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
   StringValue(data);
   StringValue(target);
   StringValue(midstate);
-  StringValue(hash1);
 
   if (RSTRING_LEN(data) != 128)
     rb_raise(rb_eArgError, "data must be 128 bytes");
@@ -140,13 +141,13 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate, VALUE hash1)
     rb_raise(rb_eArgError, "target must be 32 bytes");
   if (RSTRING_LEN(midstate) != 32)
     rb_raise(rb_eArgError, "midstate must be 32 bytes");
-  if (RSTRING_LEN(hash1) != 64)
-    rb_raise(rb_eArgError, "hash1 must be 64 bytes");
 
   memcpy((void *) miner->params.data,     RSTRING_PTR(data),    128);
   memcpy((void *) miner->params.target,   RSTRING_PTR(target),   32);
   memcpy((void *) miner->params.midstate, RSTRING_PTR(midstate), 32);
-  memcpy((void *) miner->params.hash1,    RSTRING_PTR(hash1),    64);
+
+  miner->params.start_nonce = NUM2ULONG(start_nonce);
+  miner->params.range       = NUM2ULONG(range);
 
   /* unlock the Global Interpreter Lock and run the SPE context */
 
@@ -226,5 +227,5 @@ void Init_spu_miner(void)
   rb_define_alloc_func(cSPUMiner, i_allocate);
 
   rb_define_method(cSPUMiner, "initialize", m_initialize, -1);
-  rb_define_method(cSPUMiner, "run", m_run, 4);
+  rb_define_method(cSPUMiner, "run", m_run, 5);
 }

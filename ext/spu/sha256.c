@@ -230,10 +230,11 @@ void sha256_update(hash_t *digest, const uint32_t M[16], const hash_t init)
  * NAME:	sha256->search()
  * DESCRIPTION:	try to find a nonce which satisfies a target hash
  */
-int64_t sha256_search(uint32_t data[32], const hash_t midstate,
-		      const hash_t target)
+int64_t sha256_search(uint32_t data[32],
+		      const hash_t target, const hash_t midstate,
+		      uint32_t start_nonce, uint32_t range)
 {
-  uint64_t nonce;
+  uint32_t nonce, stop_nonce = start_nonce + range + (4 - (range % 4)) % 4;
   int t;
   uint32_t *M = &data[16];
   vec_uint4 W0[3], a0, b0, c0, d0, e0, f0, g0, h0;
@@ -278,7 +279,7 @@ int64_t sha256_search(uint32_t data[32], const hash_t midstate,
 
   /* do the search, four at a time */
 
-  for (nonce = 0; nonce < MAX_NONCE; nonce += 4) {
+  for (nonce = start_nonce; nonce != stop_nonce; nonce += 4) {
     W[0] = W0[0];
     W[1] = W0[1];
     W[2] = W0[2];
@@ -361,7 +362,7 @@ int64_t sha256_search(uint32_t data[32], const hash_t midstate,
     /* we may have something interesting */
 
 # ifdef DEBUG
-    debug("interesting nonce %08llx+3", nonce);
+    debug("interesting nonce %08lx+3", nonce);
 # endif
 
     /* first complete the SHA-256 */
@@ -398,8 +399,7 @@ int64_t sha256_search(uint32_t data[32], const hash_t midstate,
 
     /* we have a winner */
 
-    return (uint32_t) nonce +
-      (spu_extract(spu_cntlz(spu_promote(solution, 0)), 0) - 28);
+    return nonce + (spu_extract(spu_cntlz(spu_promote(solution, 0)), 0) - 28);
   }
 
   return -1;

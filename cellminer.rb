@@ -147,7 +147,7 @@ class CellMiner
       say status
 
       if solved = miner.run(work[:data], work[:target],
-                            work[:midstate], work[:hash1])
+                            work[:midstate], 0, 0x8000000)
         # send back to server...
         data = solved.unpack('N*').pack('V*').unpack('H*').first
         response = rpc.getwork(data) rescue nil

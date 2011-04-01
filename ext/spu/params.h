@@ -2,11 +2,15 @@
 # ifndef PARAMS_H
 # define PARAMS_H
 
+# include <stdint.h>
+
 struct worker_params {
   char data[128];
   char target[32];
   char midstate[32];
-  char hash1[64];
+
+  uint32_t start_nonce;
+  uint32_t range;
 
   unsigned int flags;
 
