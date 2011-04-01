@@ -1,5 +1,7 @@
 
 require 'optparse'
+require 'thread'
+require 'timeout'
 require 'pp'
 
 require './bitcoin.rb'
@@ -8,13 +10,22 @@ require './ext/spu_miner.so'
 require './sha256.rb'
 
 class CellMiner
+  include Timeout
+
   attr_accessor :options
   attr_reader :rpc
+
+  class AbortMining < StandardError; end
+
+  NSLICES = 128
+  QUANTUM = 0x100000000 / NSLICES
+
+  TIMEOUT = 60
 
   def initialize(argv = [])
     @options = Hash.new
 
-    options[:threads] = 1
+    options[:num_spu] = 1
     options[:debug] = ENV['DEBUG']
 
     OptionParser.new do |opts|
@@ -30,9 +41,9 @@ class CellMiner
         options[:password] = password
       end
 
-      opts.on("-t", "--threads N", Integer,
-              "Number of SPU threads to start") do |n|
-        options[:threads] = n
+      opts.on("-s N", Integer,
+              "Number of SPUs to use") do |n|
+        options[:num_spu] = n
       end
 
       opts.on("-b", "--balance",
@@ -66,8 +77,6 @@ class CellMiner
     end
 
     @rpc = Bitcoin.rpc_proxy(params)
-
-    @mutex = Mutex.new
   end
 
   def main
@@ -82,41 +91,31 @@ class CellMiner
     rescue RestClient::ResourceNotFound
     end
 
-    puts "Starting #{options[:threads]} mining thread(s)..."
+    work_queue = Queue.new
+    solved_queue = Queue.new
 
-    threads = []
-    options[:threads].times do
-      threads << Thread.new { mine }
-      sleep 2
+    puts "Creating %d SPU miner(s)..." % options[:num_spu]
+
+    miners = []
+    options[:num_spu].times do
+      miners << Thread.new do
+        miner = Bitcoin::SPUMiner.new(options[:debug])
+
+        loop do
+          begin
+            work = work_queue.shift
+            start = Time.now
+            if solution = miner.run(work[:data], work[:target], work[:midstate],
+                                    work[:start_nonce], work[:range])
+              solved_queue << solution
+            else
+              Thread.current[:rate] = work[:range] / (Time.now - start)
+            end
+          rescue AbortMining
+          end
+        end
+      end
     end
-
-    threads.each {|thread| thread.join }
-  end
-
-  private
-
-  attr_reader :mutex
-
-  def say(info)
-    mutex.synchronize { puts "#{Thread.current} #{info}" }
-  end
-
-  def debug(info)
-    say(info) if options[:debug]
-  end
-
-  def dump(data, desc)
-    mutex.synchronize do
-      puts "#{Thread.current} #{desc} ="
-      pp data
-    end if options[:debug]
-    data
-  end
-
-  def mine
-    miner = Bitcoin::SPUMiner.new(options[:debug])
-
-    debug "Starting with #{miner}"
 
     last_block  = nil
     last_target = nil
@@ -134,7 +133,9 @@ class CellMiner
       prev_block = work[:data][4..35].reverse.unpack('H*').first
       target = work[:target].unpack('H*').first
 
-      status = "Got work..."
+      rate = miners.inject(0) {|sum, thr| sum + (thr[:rate] || 0) }
+
+      status = "Got work... %.2f Mhash/s" % (rate / 1_000_000)
       if prev_block != last_block
         status << "\n    prev = %s" % prev_block
         last_block = prev_block
@@ -146,18 +147,50 @@ class CellMiner
 
       say status
 
-      if solved = miner.run(work[:data], work[:target],
-                            work[:midstate], 0, 0x8000000)
+      work_queue.clear
+      miners.each {|thr| thr.raise AbortMining }
+
+      work[:range] = QUANTUM
+
+      NSLICES.times do |i|
+        work[:start_nonce] = i * work[:range]
+        work_queue << work.dup
+      end
+
+      begin
+        solution = nil
+        timeout(TIMEOUT) { solution = solved_queue.shift }
+
         # send back to server...
-        data = solved.unpack('N*').pack('V*').unpack('H*').first
+        data = solution.unpack('N*').pack('V*').unpack('H*').first
         response = rpc.getwork(data) rescue nil
 
         say "Solved? (%s)\n    data = %s\n    hash = %s\n  target = %s" %
-          [response, data, block_hash(solved), target]
+          [response, data, block_hash(solution), target]
+      rescue Timeout::Error
+        debug "Timeout"
       end
 
       return if options[:test]
     end
+  end
+
+  private
+
+  def say(info)
+    puts info
+  end
+
+  def debug(info)
+    say(info) if options[:debug]
+  end
+
+  def dump(data, desc)
+    if options[:debug]
+      puts "#{desc} ="
+      pp data
+    end
+    data
   end
 
   def getwork
