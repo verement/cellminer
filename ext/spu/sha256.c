@@ -146,7 +146,7 @@ vec_uint4 vec_sigma1(vec_uint4 x)
   ADD(sigma1(W[(t - 2) % 16]),					\
       ADD(W[(t - 7) % 16],					\
 	  ADD(sigma0(W[(t - 15) % 16]),				\
-	      W[(t - 16) % 16])))
+	      W[t % 16])))
 
 # define T1(t, e, f, g, h)					\
   ADD(h,							\
@@ -240,26 +240,14 @@ int64_t sha256_search(uint32_t data[32],
   vec_uint4 W0[3], a0, b0, c0, d0, e0, f0, g0, h0;
   vec_uint4 W[16], a, b, c, d, e, f, g, h, T1, T2;
   vec_uint4 a2, b2, c2, d2, e2, f2, g2, h2;
-  vec_uint4 ta, tb, tc, td, te, tf, tg, th;
   vec_uint4 borrow;
-  vec_uchar16 reverse_endian = {
+  const vec_uchar16 reverse_endian = {
      3,  2,  1,  0,
      7,  6,  5,  4,
     11, 10,  9,  8,
     15, 14, 13, 12
   };
   unsigned int solution;
-
-  /* set up target vectors */
-
-  ta = VHASHWORD(target, 0);
-  tb = VHASHWORD(target, 1);
-  tc = VHASHWORD(target, 2);
-  td = VHASHWORD(target, 3);
-  te = VHASHWORD(target, 4);
-  tf = VHASHWORD(target, 5);
-  tg = VHASHWORD(target, 6);
-  th = VHASHWORD(target, 7);
 
   /* precompute first three rounds */
 
@@ -286,7 +274,8 @@ int64_t sha256_search(uint32_t data[32],
 
     /* t = 3 */
     W[3] = (vec_uint4) { nonce + 0, nonce + 1, nonce + 2, nonce + 3 };
-    ROUNDX(3, a, b, c, d, e, f, g, h, a0, b0, c0, d0, e0, f0, g0, h0);
+    ROUNDX(3, a, b, c, d, e, f, g, h,
+	   a0, b0, c0, d0, e0, f0, g0, h0);
 
     for (t = 4; t < 16; ++t) {
       W[t] = spu_splats(M[t]);
@@ -350,20 +339,14 @@ int64_t sha256_search(uint32_t data[32],
 
     /* second SHA-256 (almost) complete */
 
-    /* reverse the endian of the last word vector */
-    a = spu_shuffle(h2, h2, reverse_endian);
-
-    /* generate borrow (target - a) and check */
-    borrow = spu_genb(ta, a);
+    /* reverse the endian of the last word vector, generate borrow and check */
+    borrow = spu_genb(VHASHWORD(target, 0),
+		      spu_shuffle(h2, h2, reverse_endian));
 
     if (__builtin_expect(spu_extract(spu_gather(borrow), 0) == 0, 1))
       continue;
 
     /* we may have something interesting */
-
-# ifdef DEBUG
-    debug("interesting nonce %08lx+3", nonce);
-# endif
 
     /* first complete the SHA-256 */
     a2 = ADD(a2, H0.words[0]);
@@ -375,22 +358,22 @@ int64_t sha256_search(uint32_t data[32],
     g2 = ADD(g2, H0.words[6]);
 
     /* now do the full subtraction */
-    h = spu_shuffle(a2, a2, reverse_endian);
-    borrow = spu_genb(th, h);
-    g = spu_shuffle(b2, b2, reverse_endian);
-    borrow = spu_genbx(tg, g, borrow);
-    f = spu_shuffle(c2, c2, reverse_endian);
-    borrow = spu_genbx(tf, f, borrow);
-    e = spu_shuffle(d2, d2, reverse_endian);
-    borrow = spu_genbx(te, e, borrow);
-    d = spu_shuffle(e2, e2, reverse_endian);
-    borrow = spu_genbx(td, d, borrow);
-    c = spu_shuffle(f2, f2, reverse_endian);
-    borrow = spu_genbx(tc, c, borrow);
-    b = spu_shuffle(g2, g2, reverse_endian);
-    borrow = spu_genbx(tb, b, borrow);
-
-    borrow = spu_genbx(ta, a, borrow);
+    borrow = spu_genb(VHASHWORD(target, 7),
+		      spu_shuffle(a2, a2, reverse_endian));
+    borrow = spu_genbx(VHASHWORD(target, 6),
+		       spu_shuffle(b2, b2, reverse_endian), borrow);
+    borrow = spu_genbx(VHASHWORD(target, 5),
+		       spu_shuffle(c2, c2, reverse_endian), borrow);
+    borrow = spu_genbx(VHASHWORD(target, 4),
+		       spu_shuffle(d2, d2, reverse_endian), borrow);
+    borrow = spu_genbx(VHASHWORD(target, 3),
+		       spu_shuffle(e2, e2, reverse_endian), borrow);
+    borrow = spu_genbx(VHASHWORD(target, 2),
+		       spu_shuffle(f2, f2, reverse_endian), borrow);
+    borrow = spu_genbx(VHASHWORD(target, 1),
+		       spu_shuffle(g2, g2, reverse_endian), borrow);
+    borrow = spu_genbx(VHASHWORD(target, 0),
+		       spu_shuffle(h2, h2, reverse_endian), borrow);
 
     solution = spu_extract(spu_gather(borrow), 0);
 
