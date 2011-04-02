@@ -96,6 +96,8 @@ class CellMiner
 
     puts "Creating %d SPU miner(s)..." % options[:num_spu]
 
+    Thread.abort_on_exception = true
+
     miners = []
     options[:num_spu].times do
       miners << Thread.new do
@@ -135,20 +137,20 @@ class CellMiner
 
       rate = miners.inject(0) {|sum, thr| sum + (thr[:rate] || 0) }
 
-      status = "Got work... %.2f Mhash/s" % (rate / 1_000_000)
+      say "Got work... %.3f Mhash/s" % (rate / 1_000_000)
+
       if prev_block != last_block
-        status << "\n    prev = %s" % prev_block
+        say "    prev = %s" % prev_block
         last_block = prev_block
+
+        work_queue.clear
+        miners.each {|thr| thr.raise AbortMining }
       end
+
       if target != last_target
-        status << "\n  target = %s" % target
+        say "  target = %s" % target
         last_target = target
       end
-
-      say status
-
-      work_queue.clear
-      miners.each {|thr| thr.raise AbortMining }
 
       work[:range] = QUANTUM
 
@@ -167,6 +169,8 @@ class CellMiner
 
         say "Solved? (%s)\n    data = %s\n    hash = %s\n  target = %s" %
           [response, data, block_hash(solution), target]
+
+        work_queue.clear
       rescue Timeout::Error
         debug "Timeout"
       end
