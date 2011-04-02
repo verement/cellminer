@@ -46,7 +46,11 @@ module Bitcoin
         :method => method,
         :params => params
       }.to_json
-      respdata = RestClient.post(url, postdata)
+      begin
+        respdata = RestClient.post(url, postdata)
+      rescue Errno::EINTR
+        retry
+      end
 
       resp = JSON.parse(respdata)
       if resp['error']
