@@ -21,7 +21,7 @@ VALUE m_initialize(int argc, VALUE *argv, VALUE self)
   struct spu_miner *miner;
 
   if (argc < 0 || argc > 1)
-    rb_raise(rb_eArgError, "wrong number of arguments (%d for max 1)", argc);
+    rb_raise(rb_eArgError, "wrong number of arguments (%d for 0..1)", argc);
 
   Data_Get_Struct(self, struct spu_miner, miner);
 
