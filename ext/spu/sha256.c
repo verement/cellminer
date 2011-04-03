@@ -3,7 +3,6 @@
 # include <spu_intrinsics.h>
 
 # include "sha256.h"
-# include "util.h"
 
 const hash_t H0 = {
   { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
@@ -158,23 +157,19 @@ vec_uint4 vec_sigma1(vec_uint4 x)
 # define T2(a, b, c)						\
   ADD(Sigma0(a), Maj(a, b, c))
 
-# define ROUNDX(t, na, nb, nc, nd, ne, nf, ng, nh, a, b, c, d, e, f, g, h) \
+# define ROUND(t)							\
   do {									\
     T1 = T1(t, e, f, g, h);						\
     T2 = T2(a, b, c);							\
-    nh = g;								\
-    ng = f;								\
-    nf = e;								\
-    ne = ADD(d, T1);							\
-    nd = c;								\
-    nc = b;								\
-    nb = a;								\
-    na = ADD(T1, T2);							\
+    h = g;								\
+    g = f;								\
+    f = e;								\
+    e = ADD(d, T1);							\
+    d = c;								\
+    c = b;								\
+    b = a;								\
+    a = ADD(T1, T2);							\
   } while (0)
-
-# define ROUND(t, a, b, c, d, e, f, g, h)			\
-  ROUNDX(t, a, b, c, d, e, f, g, h,				\
-	    a, b, c, d, e, f, g, h)
 
 /*
  * NAME:	sha256->update()
@@ -182,7 +177,9 @@ vec_uint4 vec_sigma1(vec_uint4 x)
  */
 void sha256_update(hash_t *digest, const uint32_t M[16], const hash_t init)
 {
+# if !defined(UNROLL_SHA256)
   int t;
+# endif
   uint32_t W[16], a, b, c, d, e, f, g, h, T1, T2;
 
   a = init.words[0];
@@ -194,15 +191,91 @@ void sha256_update(hash_t *digest, const uint32_t M[16], const hash_t init)
   g = init.words[6];
   h = init.words[7];
 
+# ifdef UNROLL_SHA256
+  W[ 0] = M[ 0]; ROUND( 0);
+  W[ 1] = M[ 1]; ROUND( 1);
+  W[ 2] = M[ 2]; ROUND( 2);
+  W[ 3] = M[ 3]; ROUND( 3);
+  W[ 4] = M[ 4]; ROUND( 4);
+  W[ 5] = M[ 5]; ROUND( 5);
+  W[ 6] = M[ 6]; ROUND( 6);
+  W[ 7] = M[ 7]; ROUND( 7);
+
+  W[ 8] = M[ 8]; ROUND( 8);
+  W[ 9] = M[ 9]; ROUND( 9);
+  W[10] = M[10]; ROUND(10);
+  W[11] = M[11]; ROUND(11);
+  W[12] = M[12]; ROUND(12);
+  W[13] = M[13]; ROUND(13);
+  W[14] = M[14]; ROUND(14);
+  W[15] = M[15]; ROUND(15);
+# else
   for (t = 0; t < 16; ++t) {
     W[t] = M[t];
-    ROUND(t, a, b, c, d, e, f, g, h);
+    ROUND(t);
   }
+# endif
 
+# ifdef UNROLL_SHA256
+  W[16 % 16] = W(16); ROUND(16);
+  W[17 % 16] = W(17); ROUND(17);
+  W[18 % 16] = W(18); ROUND(18);
+  W[19 % 16] = W(19); ROUND(19);
+  W[20 % 16] = W(20); ROUND(20);
+  W[21 % 16] = W(21); ROUND(21);
+  W[22 % 16] = W(22); ROUND(22);
+  W[23 % 16] = W(23); ROUND(23);
+
+  W[24 % 16] = W(24); ROUND(24);
+  W[25 % 16] = W(25); ROUND(25);
+  W[26 % 16] = W(26); ROUND(26);
+  W[27 % 16] = W(27); ROUND(27);
+  W[28 % 16] = W(28); ROUND(28);
+  W[29 % 16] = W(29); ROUND(29);
+  W[30 % 16] = W(30); ROUND(30);
+  W[31 % 16] = W(31); ROUND(31);
+
+  W[32 % 16] = W(32); ROUND(32);
+  W[33 % 16] = W(33); ROUND(33);
+  W[34 % 16] = W(34); ROUND(34);
+  W[35 % 16] = W(35); ROUND(35);
+  W[36 % 16] = W(36); ROUND(36);
+  W[37 % 16] = W(37); ROUND(37);
+  W[38 % 16] = W(38); ROUND(38);
+  W[39 % 16] = W(39); ROUND(39);
+
+  W[40 % 16] = W(40); ROUND(40);
+  W[41 % 16] = W(41); ROUND(41);
+  W[42 % 16] = W(42); ROUND(42);
+  W[43 % 16] = W(43); ROUND(43);
+  W[44 % 16] = W(44); ROUND(44);
+  W[45 % 16] = W(45); ROUND(45);
+  W[46 % 16] = W(46); ROUND(46);
+  W[47 % 16] = W(47); ROUND(47);
+
+  W[48 % 16] = W(48); ROUND(48);
+  W[49 % 16] = W(49); ROUND(49);
+  W[50 % 16] = W(50); ROUND(50);
+  W[51 % 16] = W(51); ROUND(51);
+  W[52 % 16] = W(52); ROUND(52);
+  W[53 % 16] = W(53); ROUND(53);
+  W[54 % 16] = W(54); ROUND(54);
+  W[55 % 16] = W(55); ROUND(55);
+
+  W[56 % 16] = W(56); ROUND(56);
+  W[57 % 16] = W(57); ROUND(57);
+  W[58 % 16] = W(58); ROUND(58);
+  W[59 % 16] = W(59); ROUND(59);
+  W[60 % 16] = W(60); ROUND(60);
+  W[61 % 16] = W(61); ROUND(61);
+  W[62 % 16] = W(62); ROUND(62);
+  W[63 % 16] = W(63); ROUND(63);
+# else
   for (t = 16; t < 64; ++t) {
     W[t % 16] = W(t);
-    ROUND(t, a, b, c, d, e, f, g, h);
+    ROUND(t);
   }
+# endif
 
   digest->words[0] = ADD(a, init.words[0]);
   digest->words[1] = ADD(b, init.words[1]);
@@ -235,11 +308,12 @@ int64_t sha256_search(uint32_t data[32],
 		      uint32_t start_nonce, uint32_t range)
 {
   uint32_t nonce, stop_nonce = start_nonce + range + (4 - (range % 4)) % 4;
+# if !defined(UNROLL_SHA256)
   int t;
+# endif
   uint32_t *M = &data[16];
   vec_uint4 W0[3], a0, b0, c0, d0, e0, f0, g0, h0;
   vec_uint4 W[16], a, b, c, d, e, f, g, h, T1, T2;
-  vec_uint4 a2, b2, c2, d2, e2, f2, g2, h2;
   vec_uint4 borrow;
   const vec_uchar16 reverse_endian = {
      3,  2,  1,  0,
@@ -251,19 +325,34 @@ int64_t sha256_search(uint32_t data[32],
 
   /* precompute first three rounds */
 
-  a0 = VHASHWORD(midstate, 0);
-  b0 = VHASHWORD(midstate, 1);
-  c0 = VHASHWORD(midstate, 2);
-  d0 = VHASHWORD(midstate, 3);
-  e0 = VHASHWORD(midstate, 4);
-  f0 = VHASHWORD(midstate, 5);
-  g0 = VHASHWORD(midstate, 6);
-  h0 = VHASHWORD(midstate, 7);
+  a = VHASHWORD(midstate, 0);
+  b = VHASHWORD(midstate, 1);
+  c = VHASHWORD(midstate, 2);
+  d = VHASHWORD(midstate, 3);
+  e = VHASHWORD(midstate, 4);
+  f = VHASHWORD(midstate, 5);
+  g = VHASHWORD(midstate, 6);
+  h = VHASHWORD(midstate, 7);
 
+# ifdef UNROLL_SHA256
+  W[0] = W0[0] = spu_splats(M[0]); ROUND(0);
+  W[1] = W0[1] = spu_splats(M[1]); ROUND(1);
+  W[2] = W0[2] = spu_splats(M[2]); ROUND(2);
+# else
   for (t = 0; t < 3; ++t) {
     W[t] = W0[t] = spu_splats(M[t]);
-    ROUND(t, a0, b0, c0, d0, e0, f0, g0, h0);
+    ROUND(t);
   }
+# endif
+
+  a0 = a;
+  b0 = b;
+  c0 = c;
+  d0 = d;
+  e0 = e;
+  f0 = f;
+  g0 = g;
+  h0 = h;
 
   /* do the search, four at a time */
 
@@ -272,76 +361,216 @@ int64_t sha256_search(uint32_t data[32],
     W[1] = W0[1];
     W[2] = W0[2];
 
+    a = a0;
+    b = b0;
+    c = c0;
+    d = d0;
+    e = e0;
+    f = f0;
+    g = g0;
+    h = h0;
+
     /* t = 3 */
     W[3] = (vec_uint4) { nonce + 0, nonce + 1, nonce + 2, nonce + 3 };
-    ROUNDX(3, a, b, c, d, e, f, g, h,
-	   a0, b0, c0, d0, e0, f0, g0, h0);
+    ROUND(3);
 
+# ifdef UNROLL_SHA256
+    W[ 4] = spu_splats(M[ 4]); ROUND( 4);
+    W[ 5] = spu_splats(M[ 5]); ROUND( 5);
+    W[ 6] = spu_splats(M[ 6]); ROUND( 6);
+    W[ 7] = spu_splats(M[ 7]); ROUND( 7);
+
+    W[ 8] = spu_splats(M[ 8]); ROUND( 8);
+    W[ 9] = spu_splats(M[ 9]); ROUND( 9);
+    W[10] = spu_splats(M[10]); ROUND(10);
+    W[11] = spu_splats(M[11]); ROUND(11);
+    W[12] = spu_splats(M[12]); ROUND(12);
+    W[13] = spu_splats(M[13]); ROUND(13);
+    W[14] = spu_splats(M[14]); ROUND(14);
+    W[15] = spu_splats(M[15]); ROUND(15);
+# else
     for (t = 4; t < 16; ++t) {
       W[t] = spu_splats(M[t]);
-      ROUND(t, a, b, c, d, e, f, g, h);
+      ROUND(t);
     }
+# endif
 
+# ifdef UNROLL_SHA256
+    W[16 % 16] = W(16); ROUND(16);
+    W[17 % 16] = W(17); ROUND(17);
+    W[18 % 16] = W(18); ROUND(18);
+    W[19 % 16] = W(19); ROUND(19);
+    W[20 % 16] = W(20); ROUND(20);
+    W[21 % 16] = W(21); ROUND(21);
+    W[22 % 16] = W(22); ROUND(22);
+    W[23 % 16] = W(23); ROUND(23);
+
+    W[24 % 16] = W(24); ROUND(24);
+    W[25 % 16] = W(25); ROUND(25);
+    W[26 % 16] = W(26); ROUND(26);
+    W[27 % 16] = W(27); ROUND(27);
+    W[28 % 16] = W(28); ROUND(28);
+    W[29 % 16] = W(29); ROUND(29);
+    W[30 % 16] = W(30); ROUND(30);
+    W[31 % 16] = W(31); ROUND(31);
+
+    W[32 % 16] = W(32); ROUND(32);
+    W[33 % 16] = W(33); ROUND(33);
+    W[34 % 16] = W(34); ROUND(34);
+    W[35 % 16] = W(35); ROUND(35);
+    W[36 % 16] = W(36); ROUND(36);
+    W[37 % 16] = W(37); ROUND(37);
+    W[38 % 16] = W(38); ROUND(38);
+    W[39 % 16] = W(39); ROUND(39);
+
+    W[40 % 16] = W(40); ROUND(40);
+    W[41 % 16] = W(41); ROUND(41);
+    W[42 % 16] = W(42); ROUND(42);
+    W[43 % 16] = W(43); ROUND(43);
+    W[44 % 16] = W(44); ROUND(44);
+    W[45 % 16] = W(45); ROUND(45);
+    W[46 % 16] = W(46); ROUND(46);
+    W[47 % 16] = W(47); ROUND(47);
+
+    W[48 % 16] = W(48); ROUND(48);
+    W[49 % 16] = W(49); ROUND(49);
+    W[50 % 16] = W(50); ROUND(50);
+    W[51 % 16] = W(51); ROUND(51);
+    W[52 % 16] = W(52); ROUND(52);
+    W[53 % 16] = W(53); ROUND(53);
+    W[54 % 16] = W(54); ROUND(54);
+    W[55 % 16] = W(55); ROUND(55);
+
+    W[56 % 16] = W(56); ROUND(56);
+    W[57 % 16] = W(57); ROUND(57);
+    W[58 % 16] = W(58); ROUND(58);
+    W[59 % 16] = W(59); ROUND(59);
+    W[60 % 16] = W(60); ROUND(60);
+    W[61 % 16] = W(61); ROUND(61);
+    W[62 % 16] = W(62); ROUND(62);
+    W[63 % 16] = W(63); ROUND(63);
+# else
     for (t = 16; t < 64; ++t) {
       W[t % 16] = W(t);
-      ROUND(t, a, b, c, d, e, f, g, h);
+      ROUND(t);
     }
+# endif
 
-    a = ADD(a, midstate.words[0]);
-    b = ADD(b, midstate.words[1]);
-    c = ADD(c, midstate.words[2]);
-    d = ADD(d, midstate.words[3]);
-    e = ADD(e, midstate.words[4]);
-    f = ADD(f, midstate.words[5]);
-    g = ADD(g, midstate.words[6]);
-    h = ADD(h, midstate.words[7]);
+    W[0] = ADD(a, midstate.words[0]);
+    W[1] = ADD(b, midstate.words[1]);
+    W[2] = ADD(c, midstate.words[2]);
+    W[3] = ADD(d, midstate.words[3]);
+    W[4] = ADD(e, midstate.words[4]);
+    W[5] = ADD(f, midstate.words[5]);
+    W[6] = ADD(g, midstate.words[6]);
+    W[7] = ADD(h, midstate.words[7]);
 
     /* first SHA-256 complete */
 
-    W[0] = a;
-    ROUNDX(0, a2, b2, c2, d2, e2, f2, g2, h2,
-	   VHASHWORD(H0, 0), VHASHWORD(H0, 1),
-	   VHASHWORD(H0, 2), VHASHWORD(H0, 3),
-	   VHASHWORD(H0, 4), VHASHWORD(H0, 5),
-	   VHASHWORD(H0, 6), VHASHWORD(H0, 7));
-    W[1] = b;
-    ROUND(1, a2, b2, c2, d2, e2, f2, g2, h2);
-    W[2] = c;
-    ROUND(2, a2, b2, c2, d2, e2, f2, g2, h2);
-    W[3] = d;
-    ROUND(3, a2, b2, c2, d2, e2, f2, g2, h2);
-    W[4] = e;
-    ROUND(4, a2, b2, c2, d2, e2, f2, g2, h2);
-    W[5] = f;
-    ROUND(5, a2, b2, c2, d2, e2, f2, g2, h2);
-    W[6] = g;
-    ROUND(6, a2, b2, c2, d2, e2, f2, g2, h2);
-    W[7] = h;
-    ROUND(7, a2, b2, c2, d2, e2, f2, g2, h2);
+    a = VHASHWORD(H0, 0);
+    b = VHASHWORD(H0, 1);
+    c = VHASHWORD(H0, 2);
+    d = VHASHWORD(H0, 3);
+    e = VHASHWORD(H0, 4);
+    f = VHASHWORD(H0, 5);
+    g = VHASHWORD(H0, 6);
+    h = VHASHWORD(H0, 7);
 
-    W[8] = spu_splats(0x80000000U);
-    ROUND(8, a2, b2, c2, d2, e2, f2, g2, h2);
+    ROUND(0);
+    ROUND(1);
+    ROUND(2);
+    ROUND(3);
+    ROUND(4);
+    ROUND(5);
+    ROUND(6);
+    ROUND(7);
 
+    W[ 8] = spu_splats(0x80000000U); ROUND( 8);
+
+# ifdef UNROLL_SHA256
+    W[ 9] = spu_splats(0x00000000U); ROUND( 9);
+    W[10] = spu_splats(0x00000000U); ROUND(10);
+    W[11] = spu_splats(0x00000000U); ROUND(11);
+    W[12] = spu_splats(0x00000000U); ROUND(12);
+    W[13] = spu_splats(0x00000000U); ROUND(13);
+    W[14] = spu_splats(0x00000000U); ROUND(14);
+# else
     for (t = 9; t < 15; ++t) {
       W[t] = spu_splats(0U);
-      ROUND(t, a2, b2, c2, d2, e2, f2, g2, h2);
+      ROUND(t);
     }
+# endif
 
-    W[15] = spu_splats(0x100U);
-    ROUND(15, a2, b2, c2, d2, e2, f2, g2, h2);
+    W[15] = spu_splats(0x00000100U); ROUND(15);
 
+# ifdef UNROLL_SHA256
+    W[16 % 16] = W(16); ROUND(16);
+    W[17 % 16] = W(17); ROUND(17);
+    W[18 % 16] = W(18); ROUND(18);
+    W[19 % 16] = W(19); ROUND(19);
+    W[20 % 16] = W(20); ROUND(20);
+    W[21 % 16] = W(21); ROUND(21);
+    W[22 % 16] = W(22); ROUND(22);
+    W[23 % 16] = W(23); ROUND(23);
+
+    W[24 % 16] = W(24); ROUND(24);
+    W[25 % 16] = W(25); ROUND(25);
+    W[26 % 16] = W(26); ROUND(26);
+    W[27 % 16] = W(27); ROUND(27);
+    W[28 % 16] = W(28); ROUND(28);
+    W[29 % 16] = W(29); ROUND(29);
+    W[30 % 16] = W(30); ROUND(30);
+    W[31 % 16] = W(31); ROUND(31);
+
+    W[32 % 16] = W(32); ROUND(32);
+    W[33 % 16] = W(33); ROUND(33);
+    W[34 % 16] = W(34); ROUND(34);
+    W[35 % 16] = W(35); ROUND(35);
+    W[36 % 16] = W(36); ROUND(36);
+    W[37 % 16] = W(37); ROUND(37);
+    W[38 % 16] = W(38); ROUND(38);
+    W[39 % 16] = W(39); ROUND(39);
+
+    W[40 % 16] = W(40); ROUND(40);
+    W[41 % 16] = W(41); ROUND(41);
+    W[42 % 16] = W(42); ROUND(42);
+    W[43 % 16] = W(43); ROUND(43);
+    W[44 % 16] = W(44); ROUND(44);
+    W[45 % 16] = W(45); ROUND(45);
+    W[46 % 16] = W(46); ROUND(46);
+    W[47 % 16] = W(47); ROUND(47);
+
+    W[48 % 16] = W(48); ROUND(48);
+    W[49 % 16] = W(49); ROUND(49);
+    W[50 % 16] = W(50); ROUND(50);
+    W[51 % 16] = W(51); ROUND(51);
+    W[52 % 16] = W(52); ROUND(52);
+    W[53 % 16] = W(53); ROUND(53);
+    W[54 % 16] = W(54); ROUND(54);
+    W[55 % 16] = W(55); ROUND(55);
+
+    W[56 % 16] = W(56); ROUND(56);
+    W[57 % 16] = W(57); ROUND(57);
+    W[58 % 16] = W(58); ROUND(58);
+    W[59 % 16] = W(59); ROUND(59);
+    W[60 % 16] = W(60); ROUND(60);
+    W[61 % 16] = W(61); ROUND(61);
+    W[62 % 16] = W(62); ROUND(62);
+    W[63 % 16] = W(63); ROUND(63);
+# else
     for (t = 16; t < 64; ++t) {
       W[t % 16] = W(t);
-      ROUND(t, a2, b2, c2, d2, e2, f2, g2, h2);
+      ROUND(t);
     }
+# endif
 
-    h2 = ADD(h2, H0.words[7]);
+    h = ADD(h, H0.words[7]);
 
     /* second SHA-256 (almost) complete */
 
     /* reverse the endian of the last word vector, generate borrow and check */
     borrow = spu_genb(VHASHWORD(target, 0),
-		      spu_shuffle(h2, h2, reverse_endian));
+		      spu_shuffle(h, h, reverse_endian));
 
     if (__builtin_expect(spu_extract(spu_gather(borrow), 0) == 0, 1))
       continue;
@@ -349,31 +578,31 @@ int64_t sha256_search(uint32_t data[32],
     /* we may have something interesting */
 
     /* first complete the SHA-256 */
-    a2 = ADD(a2, H0.words[0]);
-    b2 = ADD(b2, H0.words[1]);
-    c2 = ADD(c2, H0.words[2]);
-    d2 = ADD(d2, H0.words[3]);
-    e2 = ADD(e2, H0.words[4]);
-    f2 = ADD(f2, H0.words[5]);
-    g2 = ADD(g2, H0.words[6]);
+    a = ADD(a, H0.words[0]);
+    b = ADD(b, H0.words[1]);
+    c = ADD(c, H0.words[2]);
+    d = ADD(d, H0.words[3]);
+    e = ADD(e, H0.words[4]);
+    f = ADD(f, H0.words[5]);
+    g = ADD(g, H0.words[6]);
 
     /* now do the full subtraction */
     borrow = spu_genb(VHASHWORD(target, 7),
-		      spu_shuffle(a2, a2, reverse_endian));
+		      spu_shuffle(a, a, reverse_endian));
     borrow = spu_genbx(VHASHWORD(target, 6),
-		       spu_shuffle(b2, b2, reverse_endian), borrow);
+		       spu_shuffle(b, b, reverse_endian), borrow);
     borrow = spu_genbx(VHASHWORD(target, 5),
-		       spu_shuffle(c2, c2, reverse_endian), borrow);
+		       spu_shuffle(c, c, reverse_endian), borrow);
     borrow = spu_genbx(VHASHWORD(target, 4),
-		       spu_shuffle(d2, d2, reverse_endian), borrow);
+		       spu_shuffle(d, d, reverse_endian), borrow);
     borrow = spu_genbx(VHASHWORD(target, 3),
-		       spu_shuffle(e2, e2, reverse_endian), borrow);
+		       spu_shuffle(e, e, reverse_endian), borrow);
     borrow = spu_genbx(VHASHWORD(target, 2),
-		       spu_shuffle(f2, f2, reverse_endian), borrow);
+		       spu_shuffle(f, f, reverse_endian), borrow);
     borrow = spu_genbx(VHASHWORD(target, 1),
-		       spu_shuffle(g2, g2, reverse_endian), borrow);
+		       spu_shuffle(g, g, reverse_endian), borrow);
     borrow = spu_genbx(VHASHWORD(target, 0),
-		       spu_shuffle(h2, h2, reverse_endian), borrow);
+		       spu_shuffle(h, h, reverse_endian), borrow);
 
     solution = spu_extract(spu_gather(borrow), 0);
 

@@ -3,7 +3,6 @@
 # define SHA256_H
 
 # include <stdint.h>
-# include <spu_intrinsics.h>
 
 typedef struct {
   uint32_t words[8] __attribute__ ((aligned (16)));
