@@ -553,10 +553,9 @@ int64_t sha256_search(uint32_t data[32],
     W[57 % 16] = W(57); ROUND(57);
     W[58 % 16] = W(58); ROUND(58);
     W[59 % 16] = W(59); ROUND(59);
-    W[60 % 16] = W(60); ROUND(60);
-    /* t = 61..63 delayed */
+    /* t = 60..63 delayed */
 # else
-    for (t = 16; t < 61; ++t) {
+    for (t = 16; t < 60; ++t) {
       W[t % 16] = W(t);
       ROUND(t);
     }
@@ -564,11 +563,14 @@ int64_t sha256_search(uint32_t data[32],
 
     /* second SHA-256 (almost) complete */
 
-    T1 = ADD(e, H0.words[7]);
+    W[60 % 16] = W(60);
+    T1 = T1(60, e, f, g, h);
+
+    T2 = ADD(ADD(d, T1), H0.words[7]);
 
     /* reverse the endian of the last word vector, generate borrow and check */
     borrow = spu_genb(VHASHWORD(target, 0),
-		      spu_shuffle(T1, T1, reverse_endian));
+		      spu_shuffle(T2, T2, reverse_endian));
 
     if (__builtin_expect(spu_extract(spu_gather(borrow), 0) == 0, 1))
       continue;
@@ -576,10 +578,12 @@ int64_t sha256_search(uint32_t data[32],
     /* we may have something interesting; complete the SHA-256 */
 
 # ifdef UNROLL_SHA256
+                        ROUND(60);
     W[61 % 16] = W(61); ROUND(61);
     W[62 % 16] = W(62); ROUND(62);
     W[63 % 16] = W(63); ROUND(63);
 # else
+    ROUND(60);
     for (t = 61; t < 64; ++t) {
       W[t % 16] = W(t);
       ROUND(t);
