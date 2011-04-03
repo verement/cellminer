@@ -316,14 +316,13 @@ int64_t sha256_search(const message_t M,
 # endif
   vec_uint4 W0[3], a0, b0, c0, d0, e0, f0, g0, h0;
   vec_uint4 W[16], a, b, c, d, e, f, g, h, T1, T2;
-  vec_uint4 borrow;
+  vec_uint4 borrow, solution;
   const vec_uchar16 reverse_endian = {
      3,  2,  1,  0,
      7,  6,  5,  4,
     11, 10,  9,  8,
     15, 14, 13, 12
   };
-  unsigned int solution;
 
   /* precompute first three rounds */
 
@@ -617,14 +616,14 @@ int64_t sha256_search(const message_t M,
     borrow = spu_genbx(VHASHWORD(target, 0),
 		       spu_shuffle(h, h, reverse_endian), borrow);
 
-    solution = spu_extract(spu_gather(borrow), 0);
+    solution = spu_gather(borrow);
 
-    if (__builtin_expect(solution == 0, 1))
+    if (__builtin_expect(spu_extract(solution, 0) == 0, 1))
       continue;
 
     /* we have a winner */
 
-    return nonce + (spu_extract(spu_cntlz(spu_promote(solution, 0)), 0) - 28);
+    return nonce + (spu_extract(spu_cntlz(solution), 0) - 28);
   }
 
   return -1;
