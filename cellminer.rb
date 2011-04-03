@@ -7,7 +7,7 @@ require './ext/spu_miner.so'
 
 require './sha256.rb'
 
-class PS3Miner
+class CellMiner
   attr_accessor :options
   attr_reader :rpc
 

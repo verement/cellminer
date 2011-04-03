@@ -2,10 +2,10 @@
 # -*- mode: ruby -*-
 
 require 'rubygems'
-require './ps3miner.rb'
+require './cellminer.rb'
 
 begin
-  PS3Miner.new(ARGV).main
+  CellMiner.new(ARGV).main
 rescue Interrupt
   $stderr.puts "Interrupt"
 end
