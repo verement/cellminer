@@ -175,8 +175,9 @@ vec_uint4 vec_sigma1(vec_uint4 x)
  * NAME:	sha256->update()
  * DESCRIPTION:	update SHA-256 digest with a single message block
  */
-void sha256_update(hash_t *digest, const uint32_t M[16], const hash_t init)
+hash_t sha256_update(const message_t M, const hash_t init)
 {
+  hash_t digest;
 # if !defined(UNROLL_SHA256)
   int t;
 # endif
@@ -192,23 +193,23 @@ void sha256_update(hash_t *digest, const uint32_t M[16], const hash_t init)
   h = init.words[7];
 
 # ifdef UNROLL_SHA256
-  W[ 0] = M[ 0]; ROUND( 0);
-  W[ 1] = M[ 1]; ROUND( 1);
-  W[ 2] = M[ 2]; ROUND( 2);
-  W[ 3] = M[ 3]; ROUND( 3);
-  W[ 4] = M[ 4]; ROUND( 4);
-  W[ 5] = M[ 5]; ROUND( 5);
-  W[ 6] = M[ 6]; ROUND( 6);
-  W[ 7] = M[ 7]; ROUND( 7);
+  W[ 0] = M.words[ 0]; ROUND( 0);
+  W[ 1] = M.words[ 1]; ROUND( 1);
+  W[ 2] = M.words[ 2]; ROUND( 2);
+  W[ 3] = M.words[ 3]; ROUND( 3);
+  W[ 4] = M.words[ 4]; ROUND( 4);
+  W[ 5] = M.words[ 5]; ROUND( 5);
+  W[ 6] = M.words[ 6]; ROUND( 6);
+  W[ 7] = M.words[ 7]; ROUND( 7);
 
-  W[ 8] = M[ 8]; ROUND( 8);
-  W[ 9] = M[ 9]; ROUND( 9);
-  W[10] = M[10]; ROUND(10);
-  W[11] = M[11]; ROUND(11);
-  W[12] = M[12]; ROUND(12);
-  W[13] = M[13]; ROUND(13);
-  W[14] = M[14]; ROUND(14);
-  W[15] = M[15]; ROUND(15);
+  W[ 8] = M.words[ 8]; ROUND( 8);
+  W[ 9] = M.words[ 9]; ROUND( 9);
+  W[10] = M.words[10]; ROUND(10);
+  W[11] = M.words[11]; ROUND(11);
+  W[12] = M.words[12]; ROUND(12);
+  W[13] = M.words[13]; ROUND(13);
+  W[14] = M.words[14]; ROUND(14);
+  W[15] = M.words[15]; ROUND(15);
 # else
   for (t = 0; t < 16; ++t) {
     W[t] = M[t];
@@ -277,14 +278,16 @@ void sha256_update(hash_t *digest, const uint32_t M[16], const hash_t init)
   }
 # endif
 
-  digest->words[0] = ADD(a, init.words[0]);
-  digest->words[1] = ADD(b, init.words[1]);
-  digest->words[2] = ADD(c, init.words[2]);
-  digest->words[3] = ADD(d, init.words[3]);
-  digest->words[4] = ADD(e, init.words[4]);
-  digest->words[5] = ADD(f, init.words[5]);
-  digest->words[6] = ADD(g, init.words[6]);
-  digest->words[7] = ADD(h, init.words[7]);
+  digest.words[0] = ADD(a, init.words[0]);
+  digest.words[1] = ADD(b, init.words[1]);
+  digest.words[2] = ADD(c, init.words[2]);
+  digest.words[3] = ADD(d, init.words[3]);
+  digest.words[4] = ADD(e, init.words[4]);
+  digest.words[5] = ADD(f, init.words[5]);
+  digest.words[6] = ADD(g, init.words[6]);
+  digest.words[7] = ADD(h, init.words[7]);
+
+  return digest;
 }
 
 # define Ch	vec_Ch
@@ -303,7 +306,7 @@ void sha256_update(hash_t *digest, const uint32_t M[16], const hash_t init)
  * NAME:	sha256->search()
  * DESCRIPTION:	try to find a nonce which satisfies a target hash
  */
-int64_t sha256_search(uint32_t data[32],
+int64_t sha256_search(const message_t M,
 		      const hash_t target, const hash_t midstate,
 		      uint32_t start_nonce, uint32_t range)
 {
@@ -311,7 +314,6 @@ int64_t sha256_search(uint32_t data[32],
 # if !defined(UNROLL_SHA256)
   int t;
 # endif
-  uint32_t *M = &data[16];
   vec_uint4 W0[3], a0, b0, c0, d0, e0, f0, g0, h0;
   vec_uint4 W[16], a, b, c, d, e, f, g, h, T1, T2;
   vec_uint4 borrow;
@@ -335,12 +337,12 @@ int64_t sha256_search(uint32_t data[32],
   h = VHASHWORD(midstate, 7);
 
 # ifdef UNROLL_SHA256
-  W[0] = W0[0] = spu_splats(M[0]); ROUND(0);
-  W[1] = W0[1] = spu_splats(M[1]); ROUND(1);
-  W[2] = W0[2] = spu_splats(M[2]); ROUND(2);
+  W[0] = W0[0] = spu_splats(M.words[0]); ROUND(0);
+  W[1] = W0[1] = spu_splats(M.words[1]); ROUND(1);
+  W[2] = W0[2] = spu_splats(M.words[2]); ROUND(2);
 # else
   for (t = 0; t < 3; ++t) {
-    W[t] = W0[t] = spu_splats(M[t]);
+    W[t] = W0[t] = spu_splats(M.words[t]);
     ROUND(t);
   }
 # endif
@@ -375,22 +377,22 @@ int64_t sha256_search(uint32_t data[32],
     ROUND(3);
 
 # ifdef UNROLL_SHA256
-    W[ 4] = spu_splats(M[ 4]); ROUND( 4);
-    W[ 5] = spu_splats(M[ 5]); ROUND( 5);
-    W[ 6] = spu_splats(M[ 6]); ROUND( 6);
-    W[ 7] = spu_splats(M[ 7]); ROUND( 7);
+    W[ 4] = spu_splats(M.words[ 4]); ROUND( 4);
+    W[ 5] = spu_splats(M.words[ 5]); ROUND( 5);
+    W[ 6] = spu_splats(M.words[ 6]); ROUND( 6);
+    W[ 7] = spu_splats(M.words[ 7]); ROUND( 7);
 
-    W[ 8] = spu_splats(M[ 8]); ROUND( 8);
-    W[ 9] = spu_splats(M[ 9]); ROUND( 9);
-    W[10] = spu_splats(M[10]); ROUND(10);
-    W[11] = spu_splats(M[11]); ROUND(11);
-    W[12] = spu_splats(M[12]); ROUND(12);
-    W[13] = spu_splats(M[13]); ROUND(13);
-    W[14] = spu_splats(M[14]); ROUND(14);
-    W[15] = spu_splats(M[15]); ROUND(15);
+    W[ 8] = spu_splats(M.words[ 8]); ROUND( 8);
+    W[ 9] = spu_splats(M.words[ 9]); ROUND( 9);
+    W[10] = spu_splats(M.words[10]); ROUND(10);
+    W[11] = spu_splats(M.words[11]); ROUND(11);
+    W[12] = spu_splats(M.words[12]); ROUND(12);
+    W[13] = spu_splats(M.words[13]); ROUND(13);
+    W[14] = spu_splats(M.words[14]); ROUND(14);
+    W[15] = spu_splats(M.words[15]); ROUND(15);
 # else
     for (t = 4; t < 16; ++t) {
-      W[t] = spu_splats(M[t]);
+      W[t] = spu_splats(M.words[t]);
       ROUND(t);
     }
 # endif
