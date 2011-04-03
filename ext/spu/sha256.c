@@ -570,11 +570,8 @@ int64_t sha256_search(const message_t M,
 
     T2 = ADD(ADD(d, T1), H0.words[7]);
 
-    /* reverse the endian of the last word vector, generate borrow and check */
-    borrow = spu_genb(VHASHWORD(target, 0),
-		      spu_shuffle(T2, T2, reverse_endian));
-
-    if (__builtin_expect(spu_extract(spu_gather(borrow), 0) == 0, 1))
+    /* quick check to see if any element of the last word vector is zero */
+    if (__builtin_expect(spu_extract(spu_gather(spu_cmpeq(T2, 0)), 0) == 0, 1))
       continue;
 
     /* we may have something interesting; complete the SHA-256 */
@@ -601,7 +598,7 @@ int64_t sha256_search(const message_t M,
     g = ADD(g, H0.words[6]);
     h = ADD(h, H0.words[7]);
 
-    /* now do the full subtraction */
+    /* now do the full (reversed-endian) subtraction */
 
     borrow = spu_genb(VHASHWORD(target, 7),
 		      spu_shuffle(a, a, reverse_endian));
