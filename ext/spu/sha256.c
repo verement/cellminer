@@ -141,34 +141,34 @@ vec_uint4 vec_sigma1(vec_uint4 x)
 
 # define ADD(a, b)  (a + b)
 
-# define W(t)							\
-  ADD(sigma1(W[(t - 2) % 16]),					\
-      ADD(W[(t - 7) % 16],					\
-	  ADD(sigma0(W[(t - 15) % 16]),				\
+# define W(t)					\
+  ADD(sigma1(W[(t - 2) % 16]),			\
+      ADD(W[(t - 7) % 16],			\
+	  ADD(sigma0(W[(t - 15) % 16]),		\
 	      W[t % 16])))
 
-# define T1(t, e, f, g, h)					\
-  ADD(h,							\
-      ADD(Sigma1(e),						\
-	  ADD(Ch(e, f, g),					\
-	      ADD(W[t % 16],					\
+# define T1(t, e, f, g, h)			\
+  ADD(h,					\
+      ADD(Sigma1(e),				\
+	  ADD(Ch(e, f, g),			\
+	      ADD(W[t % 16],			\
 		  K[t]))))
 
-# define T2(a, b, c)						\
+# define T2(a, b, c)				\
   ADD(Sigma0(a), Maj(a, b, c))
 
-# define ROUND(t)							\
-  do {									\
-    T1 = T1(t, e, f, g, h);						\
-    T2 = T2(a, b, c);							\
-    h = g;								\
-    g = f;								\
-    f = e;								\
-    e = ADD(d, T1);							\
-    d = c;								\
-    c = b;								\
-    b = a;								\
-    a = ADD(T1, T2);							\
+# define ROUND(t)				\
+  do {						\
+    T1 = T1(t, e, f, g, h);			\
+    T2 = T2(a, b, c);				\
+    h = g;					\
+    g = f;					\
+    f = e;					\
+    e = ADD(d, T1);				\
+    d = c;					\
+    c = b;					\
+    b = a;					\
+    a = ADD(T1, T2);				\
   } while (0)
 
 /*
@@ -554,30 +554,38 @@ int64_t sha256_search(uint32_t data[32],
     W[58 % 16] = W(58); ROUND(58);
     W[59 % 16] = W(59); ROUND(59);
     W[60 % 16] = W(60); ROUND(60);
-    W[61 % 16] = W(61); ROUND(61);
-    W[62 % 16] = W(62); ROUND(62);
-    W[63 % 16] = W(63); ROUND(63);
+    /* t = 61..63 delayed */
 # else
-    for (t = 16; t < 64; ++t) {
+    for (t = 16; t < 61; ++t) {
       W[t % 16] = W(t);
       ROUND(t);
     }
 # endif
 
-    h = ADD(h, H0.words[7]);
-
     /* second SHA-256 (almost) complete */
+
+    T1 = ADD(e, H0.words[7]);
 
     /* reverse the endian of the last word vector, generate borrow and check */
     borrow = spu_genb(VHASHWORD(target, 0),
-		      spu_shuffle(h, h, reverse_endian));
+		      spu_shuffle(T1, T1, reverse_endian));
 
     if (__builtin_expect(spu_extract(spu_gather(borrow), 0) == 0, 1))
       continue;
 
-    /* we may have something interesting */
+    /* we may have something interesting; complete the SHA-256 */
 
-    /* first complete the SHA-256 */
+# ifdef UNROLL_SHA256
+    W[61 % 16] = W(61); ROUND(61);
+    W[62 % 16] = W(62); ROUND(62);
+    W[63 % 16] = W(63); ROUND(63);
+# else
+    for (t = 61; t < 64; ++t) {
+      W[t % 16] = W(t);
+      ROUND(t);
+    }
+# endif
+
     a = ADD(a, H0.words[0]);
     b = ADD(b, H0.words[1]);
     c = ADD(c, H0.words[2]);
@@ -585,8 +593,10 @@ int64_t sha256_search(uint32_t data[32],
     e = ADD(e, H0.words[4]);
     f = ADD(f, H0.words[5]);
     g = ADD(g, H0.words[6]);
+    h = ADD(h, H0.words[7]);
 
     /* now do the full subtraction */
+
     borrow = spu_genb(VHASHWORD(target, 7),
 		      spu_shuffle(a, a, reverse_endian));
     borrow = spu_genbx(VHASHWORD(target, 6),
