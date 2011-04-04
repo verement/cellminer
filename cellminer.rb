@@ -28,6 +28,7 @@ class CellMiner
     @options = Hash.new
 
     options[:num_spe] = 6
+    options[:num_ppe] = 0
     options[:debug] = ENV['DEBUG']
 
     OptionParser.new do |opts|
@@ -48,9 +49,10 @@ class CellMiner
         options[:num_spe] = n
       end
 
-      opts.on("--ppe",
-              "Use the PPE in addition to SPEs") do |opt|
-        options[:ppe] = opt
+      opts.on("--ppe N", Integer,
+              "Number of PPE threads to use (default %d)" %
+              options[:num_ppe]) do |opt|
+        options[:num_ppe] = opt
       end
 
       opts.on("-b", "--balance",
@@ -125,9 +127,11 @@ class CellMiner
       end
     end
 
-    if options[:ppe]
-      puts "Creating PPU miner..."
-      miners << Thread.new(Bitcoin::PPUMiner, &miner_proc)
+    if options[:num_ppe] > 0
+      puts "Creating %d PPU miner(s)..." % options[:num_ppe]
+      options[:num_ppe].times do
+        miners << Thread.new(Bitcoin::PPUMiner, &miner_proc)
+      end
     end
 
     if miners.empty?
