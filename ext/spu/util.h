@@ -2,6 +2,8 @@
 # ifndef UTIL_H
 # define UTIL_H
 
+# include <stdint.h>
+
 # include "sha256.h"
 
 extern uint64_t spu_id;
