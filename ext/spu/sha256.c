@@ -297,7 +297,7 @@ hash_t sha256_update(const message_t M, const hash_t init)
 # undef  ADD
 # define ADD(a, b)  spu_add(a, b)
 
-# define VHASHWORD(hash, i)  spu_splats((hash).words[i])
+# define SPLAT(x)  spu_splats(x)
 
 /*
  * NAME:	sha256->search()
@@ -323,22 +323,22 @@ int64_t sha256_search(const message_t M,
 
   /* precompute first three rounds */
 
-  a = VHASHWORD(midstate, 0);
-  b = VHASHWORD(midstate, 1);
-  c = VHASHWORD(midstate, 2);
-  d = VHASHWORD(midstate, 3);
-  e = VHASHWORD(midstate, 4);
-  f = VHASHWORD(midstate, 5);
-  g = VHASHWORD(midstate, 6);
-  h = VHASHWORD(midstate, 7);
+  a = SPLAT(midstate.words[0]);
+  b = SPLAT(midstate.words[1]);
+  c = SPLAT(midstate.words[2]);
+  d = SPLAT(midstate.words[3]);
+  e = SPLAT(midstate.words[4]);
+  f = SPLAT(midstate.words[5]);
+  g = SPLAT(midstate.words[6]);
+  h = SPLAT(midstate.words[7]);
 
 # ifdef UNROLL_SHA256
-  W[0] = W0[0] = spu_splats(M.words[0]); ROUND(0);
-  W[1] = W0[1] = spu_splats(M.words[1]); ROUND(1);
-  W[2] = W0[2] = spu_splats(M.words[2]); ROUND(2);
+  W[0] = W0[0] = SPLAT(M.words[0]); ROUND(0);
+  W[1] = W0[1] = SPLAT(M.words[1]); ROUND(1);
+  W[2] = W0[2] = SPLAT(M.words[2]); ROUND(2);
 # else
   for (t = 0; t < 3; ++t) {
-    W[t] = W0[t] = spu_splats(M.words[t]);
+    W[t] = W0[t] = SPLAT(M.words[t]);
     ROUND(t);
   }
 # endif
@@ -373,22 +373,22 @@ int64_t sha256_search(const message_t M,
     ROUND(3);
 
 # ifdef UNROLL_SHA256
-    W[ 4] = spu_splats(M.words[ 4]); ROUND( 4);
-    W[ 5] = spu_splats(M.words[ 5]); ROUND( 5);
-    W[ 6] = spu_splats(M.words[ 6]); ROUND( 6);
-    W[ 7] = spu_splats(M.words[ 7]); ROUND( 7);
+    W[ 4] = SPLAT(M.words[ 4]); ROUND( 4);
+    W[ 5] = SPLAT(M.words[ 5]); ROUND( 5);
+    W[ 6] = SPLAT(M.words[ 6]); ROUND( 6);
+    W[ 7] = SPLAT(M.words[ 7]); ROUND( 7);
 
-    W[ 8] = spu_splats(M.words[ 8]); ROUND( 8);
-    W[ 9] = spu_splats(M.words[ 9]); ROUND( 9);
-    W[10] = spu_splats(M.words[10]); ROUND(10);
-    W[11] = spu_splats(M.words[11]); ROUND(11);
-    W[12] = spu_splats(M.words[12]); ROUND(12);
-    W[13] = spu_splats(M.words[13]); ROUND(13);
-    W[14] = spu_splats(M.words[14]); ROUND(14);
-    W[15] = spu_splats(M.words[15]); ROUND(15);
+    W[ 8] = SPLAT(M.words[ 8]); ROUND( 8);
+    W[ 9] = SPLAT(M.words[ 9]); ROUND( 9);
+    W[10] = SPLAT(M.words[10]); ROUND(10);
+    W[11] = SPLAT(M.words[11]); ROUND(11);
+    W[12] = SPLAT(M.words[12]); ROUND(12);
+    W[13] = SPLAT(M.words[13]); ROUND(13);
+    W[14] = SPLAT(M.words[14]); ROUND(14);
+    W[15] = SPLAT(M.words[15]); ROUND(15);
 # else
     for (t = 4; t < 16; ++t) {
-      W[t] = spu_splats(M.words[t]);
+      W[t] = SPLAT(M.words[t]);
       ROUND(t);
     }
 # endif
@@ -465,14 +465,14 @@ int64_t sha256_search(const message_t M,
 
     /* first SHA-256 complete */
 
-    a = VHASHWORD(H0, 0);
-    b = VHASHWORD(H0, 1);
-    c = VHASHWORD(H0, 2);
-    d = VHASHWORD(H0, 3);
-    e = VHASHWORD(H0, 4);
-    f = VHASHWORD(H0, 5);
-    g = VHASHWORD(H0, 6);
-    h = VHASHWORD(H0, 7);
+    a = SPLAT(H0.words[0]);
+    b = SPLAT(H0.words[1]);
+    c = SPLAT(H0.words[2]);
+    d = SPLAT(H0.words[3]);
+    e = SPLAT(H0.words[4]);
+    f = SPLAT(H0.words[5]);
+    g = SPLAT(H0.words[6]);
+    h = SPLAT(H0.words[7]);
 
     ROUND(0);
     ROUND(1);
@@ -483,23 +483,23 @@ int64_t sha256_search(const message_t M,
     ROUND(6);
     ROUND(7);
 
-    W[ 8] = spu_splats(0x80000000U); ROUND( 8);
+    W[ 8] = SPLAT(0x80000000U); ROUND( 8);
 
 # ifdef UNROLL_SHA256
-    W[ 9] = spu_splats(0x00000000U); ROUND( 9);
-    W[10] = spu_splats(0x00000000U); ROUND(10);
-    W[11] = spu_splats(0x00000000U); ROUND(11);
-    W[12] = spu_splats(0x00000000U); ROUND(12);
-    W[13] = spu_splats(0x00000000U); ROUND(13);
-    W[14] = spu_splats(0x00000000U); ROUND(14);
+    W[ 9] = SPLAT(0x00000000U); ROUND( 9);
+    W[10] = SPLAT(0x00000000U); ROUND(10);
+    W[11] = SPLAT(0x00000000U); ROUND(11);
+    W[12] = SPLAT(0x00000000U); ROUND(12);
+    W[13] = SPLAT(0x00000000U); ROUND(13);
+    W[14] = SPLAT(0x00000000U); ROUND(14);
 # else
     for (t = 9; t < 15; ++t) {
-      W[t] = spu_splats(0U);
+      W[t] = SPLAT(0U);
       ROUND(t);
     }
 # endif
 
-    W[15] = spu_splats(0x00000100U); ROUND(15);
+    W[15] = SPLAT(0x00000100U); ROUND(15);
 
 # ifdef UNROLL_SHA256
     W[16 % 16] = W(16); ROUND(16);
@@ -559,8 +559,6 @@ int64_t sha256_search(const message_t M,
     }
 # endif
 
-    /* second SHA-256 (almost) complete */
-
     W[60 % 16] = W(60);
     T1 = T1(60, e, f, g, h);
 
@@ -570,15 +568,15 @@ int64_t sha256_search(const message_t M,
     if (__builtin_expect(spu_extract(spu_gather(spu_cmpeq(T2, 0)), 0) == 0, 1))
       continue;
 
-    /* we may have something interesting; complete the SHA-256 */
+    /* we have something interesting; finish the SHA-256 */
+
+    ROUND(60);
 
 # ifdef UNROLL_SHA256
-                        ROUND(60);
     W[61 % 16] = W(61); ROUND(61);
     W[62 % 16] = W(62); ROUND(62);
     W[63 % 16] = W(63); ROUND(63);
 # else
-    ROUND(60);
     for (t = 61; t < 64; ++t) {
       W[t % 16] = W(t);
       ROUND(t);
@@ -596,21 +594,21 @@ int64_t sha256_search(const message_t M,
 
     /* now do the full (reversed-endian) subtraction */
 
-    borrow = spu_genb(VHASHWORD(target, 7),
+    borrow = spu_genb(SPLAT(target.words[7]),
 		      spu_shuffle(a, a, reverse_endian));
-    borrow = spu_genbx(VHASHWORD(target, 6),
+    borrow = spu_genbx(SPLAT(target.words[6]),
 		       spu_shuffle(b, b, reverse_endian), borrow);
-    borrow = spu_genbx(VHASHWORD(target, 5),
+    borrow = spu_genbx(SPLAT(target.words[5]),
 		       spu_shuffle(c, c, reverse_endian), borrow);
-    borrow = spu_genbx(VHASHWORD(target, 4),
+    borrow = spu_genbx(SPLAT(target.words[4]),
 		       spu_shuffle(d, d, reverse_endian), borrow);
-    borrow = spu_genbx(VHASHWORD(target, 3),
+    borrow = spu_genbx(SPLAT(target.words[3]),
 		       spu_shuffle(e, e, reverse_endian), borrow);
-    borrow = spu_genbx(VHASHWORD(target, 2),
+    borrow = spu_genbx(SPLAT(target.words[2]),
 		       spu_shuffle(f, f, reverse_endian), borrow);
-    borrow = spu_genbx(VHASHWORD(target, 1),
+    borrow = spu_genbx(SPLAT(target.words[1]),
 		       spu_shuffle(g, g, reverse_endian), borrow);
-    borrow = spu_genbx(VHASHWORD(target, 0),
+    borrow = spu_genbx(SPLAT(target.words[0]),
 		       spu_shuffle(h, h, reverse_endian), borrow);
 
     solution = spu_gather(borrow);
