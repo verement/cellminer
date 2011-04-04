@@ -1,6 +1,7 @@
 *.o
 *.so
 *.elf
+*.a
 *.log
 depend.auto
 ext/Makefile

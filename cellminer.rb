@@ -5,7 +5,7 @@ require 'timeout'
 require 'pp'
 
 require './bitcoin.rb'
-require './ext/spu_miner.so'
+require './ext/cellminer.so'
 
 require './sha256.rb'
 
@@ -27,7 +27,7 @@ class CellMiner
   def initialize(argv = [])
     @options = Hash.new
 
-    options[:num_spu] = 6
+    options[:num_spe] = 6
     options[:debug] = ENV['DEBUG']
 
     OptionParser.new do |opts|
@@ -43,9 +43,14 @@ class CellMiner
         options[:password] = password
       end
 
-      opts.on("-s N", Integer,
-              "Number of SPUs to use") do |n|
-        options[:num_spu] = n
+      opts.on("--spe N", Integer,
+              "Number of SPEs to use (default %d)" % options[:num_spe]) do |n|
+        options[:num_spe] = n
+      end
+
+      opts.on("--ppe",
+              "Use the PPE in addition to SPEs") do |opt|
+        options[:ppe] = opt
       end
 
       opts.on("-b", "--balance",
@@ -89,31 +94,45 @@ class CellMiner
     work_queue = Queue.new
     solved_queue = Queue.new
 
-    puts "Creating %d SPU miner(s)..." % options[:num_spu]
+    miner_proc = lambda do |miner_class|
+      miner = miner_class.new(options[:debug])
+
+      loop do
+        begin
+          work = work_queue.shift
+          debug "#{miner} Mining: %08x..%08x\n" %
+            [work[:start_nonce], work[:start_nonce] + work[:range] - 1]
+          start = Time.now
+          if solution = miner.run(work[:data], work[:target], work[:midstate],
+                                  work[:start_nonce], work[:range])
+            solved_queue << solution
+          else
+            Thread.current[:rate] = work[:range] / (Time.now - start)
+          end
+        rescue AbortMining
+        end
+      end
+    end
 
     Thread.abort_on_exception = true
 
     miners = []
-    options[:num_spu].times do
-      miners << Thread.new do
-        miner = Bitcoin::SPUMiner.new(options[:debug])
 
-        loop do
-          begin
-            work = work_queue.shift
-            debug "Mining: %08x..%08x\n" %
-              [work[:start_nonce], work[:start_nonce] + work[:range] - 1]
-            start = Time.now
-            if solution = miner.run(work[:data], work[:target], work[:midstate],
-                                    work[:start_nonce], work[:range])
-              solved_queue << solution
-            else
-              Thread.current[:rate] = work[:range] / (Time.now - start)
-            end
-          rescue AbortMining
-          end
-        end
+    if options[:num_spe] > 0
+      puts "Creating %d SPU miner(s)..." % options[:num_spe]
+      options[:num_spe].times do
+        miners << Thread.new(Bitcoin::SPUMiner, &miner_proc)
       end
+    end
+
+    if options[:ppe]
+      puts "Creating PPU miner..."
+      miners << Thread.new(Bitcoin::PPUMiner, &miner_proc)
+    end
+
+    if miners.empty?
+      $stderr.puts "No miners!"
+      exit 1
     end
 
     last_block  = nil
@@ -163,6 +182,7 @@ class CellMiner
         work_queue.clear
       rescue Timeout::Error
         debug "Timeout"
+        next if options[:test]
       end
 
       return if options[:test]

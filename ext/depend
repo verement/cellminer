@@ -6,11 +6,18 @@ spu_worker.o: spu/worker.elf
 spu/worker.elf: spu/Makefile spu/*.[chs]
 	$(MAKE) -C spu
 
-clean: spu/clean
+ppu/worker.a: ppu/Makefile ppu/*.[chs]
+	$(MAKE) -C ppu
+
+clean: spu/clean ppu/clean
 
 .PHONY: spu/clean
 spu/clean:
 	$(MAKE) -C spu clean
+
+.PHONY: ppu/clean
+ppu/clean:
+	$(MAKE) -C ppu clean
 
 depend.auto: *.[ch]
 	@$(CC) -MM *.c >$@
