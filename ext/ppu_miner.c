@@ -1,4 +1,5 @@
 
+# include <stdlib.h>
 # include <stdint.h>
 # include <string.h>
 # include <pthread.h>
@@ -135,7 +136,10 @@ VALUE i_allocate(VALUE klass)
 {
   struct ppu_miner *miner;
 
-  return Data_Make_Struct(klass, struct ppu_miner, 0, RUBY_DEFAULT_FREE, miner);
+  if (posix_memalign((void **) &miner, 128, sizeof(*miner)))
+    rb_raise(rb_eRuntimeError, "unable to allocate aligned memory");
+
+  return Data_Wrap_Struct(klass, 0, free, miner);
 }
 
 void Init_ppu_miner(VALUE container)
