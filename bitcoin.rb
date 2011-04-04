@@ -13,13 +13,19 @@ module Bitcoin
 
   def self.rpc_proxy(server = {}, user_agent = nil)
     conf = self.conf
+
+    username = server.delete(:username) || conf['rpcuser']
+    password = server.delete(:password) || conf['rpcpassword']
+
     default = {
-      :userinfo => [conf['rpcuser'], conf['rpcpassword']].join(':'),
       :host => 'localhost',
       :port => 8332,
       :path => '/'
     }
     uri = URI::HTTP.build(default.merge(server))
+    uri.user = URI.escape username, /./
+    uri.password = URI.escape password, /./
+
     RPCProxy.new(uri, user_agent)
   end
 

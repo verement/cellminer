@@ -74,9 +74,8 @@ class CellMiner
 
     params = {:host => host}
     params[:port] = port.to_i if port
-    if options[:username] or options[:password]
-      params[:userinfo] = [options[:username], options[:password]].join(':')
-    end
+    params[:username] = options[:username] if options[:username]
+    params[:password] = options[:password] if options[:password]
 
     @rpc = Bitcoin.rpc_proxy(params, USER_AGENT)
   end
