@@ -11,7 +11,7 @@ module Bitcoin
     parms.inject(Hash.new) {|h, p| h.merge! Hash[*p.split("=")] }
   end
 
-  def self.rpc_proxy(server = {})
+  def self.rpc_proxy(server = {}, user_agent = nil)
     conf = self.conf
     default = {
       :userinfo => [conf['rpcuser'], conf['rpcpassword']].join(':'),
@@ -20,15 +20,15 @@ module Bitcoin
       :path => '/'
     }
     uri = URI::HTTP.build(default.merge(server))
-    RPCProxy.new(uri)
+    RPCProxy.new(uri, user_agent)
   end
 
   class RPCProxy
-    attr_reader :url
+    attr_reader :url, :user_agent
 
     class JSONRPCException < RuntimeError; end
 
-    def initialize(uri)
+    def initialize(uri, user_agent = nil)
       case uri
       when URI
       when String
@@ -38,6 +38,7 @@ module Bitcoin
       end
 
       @url = uri.to_s
+      @user_agent = user_agent
     end
 
     def method_missing(method, *params)
@@ -46,8 +47,12 @@ module Bitcoin
         :method => method,
         :params => params
       }.to_json
+
+      headers = {}
+      headers["User-Agent"] = user_agent if user_agent
+
       begin
-        respdata = RestClient.post(url, postdata)
+        respdata = RestClient.post(url, postdata, headers)
       rescue Errno::EINTR
         retry
       end

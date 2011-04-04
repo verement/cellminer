@@ -17,6 +17,8 @@ class CellMiner
 
   class AbortMining < StandardError; end
 
+  USER_AGENT = "Cell Miner"
+
   NSLICES = 128
   QUANTUM = 0x100000000 / NSLICES
 
@@ -76,7 +78,7 @@ class CellMiner
       params[:userinfo] = [options[:username], options[:password]].join(':')
     end
 
-    @rpc = Bitcoin.rpc_proxy(params)
+    @rpc = Bitcoin.rpc_proxy(params, USER_AGENT)
   end
 
   def main
