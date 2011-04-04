@@ -27,7 +27,7 @@ class CellMiner
   def initialize(argv = [])
     @options = Hash.new
 
-    options[:num_spu] = 1
+    options[:num_spu] = 6
     options[:debug] = ENV['DEBUG']
 
     OptionParser.new do |opts|
@@ -86,12 +86,6 @@ class CellMiner
       exit
     end
 
-    begin
-      puts "Current block count is #{rpc.getblockcount}"
-      puts "Current difficulty is #{rpc.getdifficulty}"
-    rescue RestClient::ResourceNotFound
-    end
-
     work_queue = Queue.new
     solved_queue = Queue.new
 
@@ -107,6 +101,8 @@ class CellMiner
         loop do
           begin
             work = work_queue.shift
+            debug "Mining: %08x..%08x\n" %
+              [work[:start_nonce], work[:start_nonce] + work[:range] - 1]
             start = Time.now
             if solution = miner.run(work[:data], work[:target], work[:midstate],
                                     work[:start_nonce], work[:range])
@@ -125,13 +121,7 @@ class CellMiner
 
     loop do
       # get work, unpack hex strings and fix byte ordering
-      work = getwork.map do |k, v|
-        k = k.to_sym
-        v = [v].pack('H*')
-        v = (k == :target) ? v.reverse : v.unpack('V*').pack('N*')
-        [k, v]
-      end
-      work = Hash[work]
+      work = getwork
 
       prev_block = work[:data][4..35].reverse.unpack('H*').first
       target = work[:target].unpack('H*').first
@@ -165,11 +155,10 @@ class CellMiner
         timeout(TIMEOUT) { solution = solved_queue.shift }
 
         # send back to server...
-        data = solution.unpack('N*').pack('V*').unpack('H*').first
-        response = rpc.getwork(data) rescue nil
+        response = sendwork(solution)
 
-        say "Solved? (%s)\n    data = %s\n    hash = %s\n  target = %s" %
-          [response, data, block_hash(solution), target]
+        say "=> Solved? (%s)\n    hash = %s\n  target = %s" %
+          [response, block_hash(solution), target]
 
         work_queue.clear
       rescue Timeout::Error
@@ -199,7 +188,19 @@ class CellMiner
   end
 
   def getwork
-    options[:test] ? testwork : rpc.getwork
+    work = options[:test] ? testwork : rpc.getwork
+    work = work.map do |k, v|
+      k = k.to_sym
+      v = [v].pack('H*')
+      v = (k == :target) ? v.reverse : v.unpack('V*').pack('N*')
+      [k, v]
+    end
+    Hash[work]
+  end
+
+  def sendwork(solution)
+    data = solution.unpack('N*').pack('V*').unpack('H*').first
+    rpc.getwork(data) rescue nil
   end
 
   def block_hash(data)
