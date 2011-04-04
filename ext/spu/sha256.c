@@ -65,8 +65,7 @@ uint32_t Ch(uint32_t x, uint32_t y, uint32_t z)
 static inline
 vec_uint4 vec_Ch(vec_uint4 x, vec_uint4 y, vec_uint4 z)
 {
-  return spu_xor(spu_and(x, y),
-		 spu_andc(z, x));
+  return spu_sel(z, y, x);
 }
 
 static inline
@@ -78,9 +77,7 @@ uint32_t Maj(uint32_t x, uint32_t y, uint32_t z)
 static inline
 vec_uint4 vec_Maj(vec_uint4 x, vec_uint4 y, vec_uint4 z)
 {
-  return spu_xor(spu_xor(spu_and(x, y),
-			 spu_and(x, z)),
-		 spu_and(y, z));
+  return spu_sel(spu_and(y, z), spu_or(y, z), x);
 }
 
 static inline
