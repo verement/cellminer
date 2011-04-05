@@ -209,7 +209,7 @@ hash_t sha256_update(const message_t M, const hash_t init)
   W[15] = M.words[15]; ROUND(15);
 # else
   for (t = 0; t < 16; ++t) {
-    W[t] = M[t];
+    W[t] = M.words[t];
     ROUND(t);
   }
 # endif
@@ -333,15 +333,19 @@ int64_t sha256_search(const message_t M,
   h = SPLAT(midstate.words[7]);
 
 # ifdef UNROLL_SHA256
-  W[0] = W0[0] = SPLAT(M.words[0]); ROUND(0);
-  W[1] = W0[1] = SPLAT(M.words[1]); ROUND(1);
-  W[2] = W0[2] = SPLAT(M.words[2]); ROUND(2);
+  W[0] = SPLAT(M.words[0]); ROUND(0);
+  W[1] = SPLAT(M.words[1]); ROUND(1);
+  W[2] = SPLAT(M.words[2]); ROUND(2);
 # else
   for (t = 0; t < 3; ++t) {
-    W[t] = W0[t] = SPLAT(M.words[t]);
+    W[t] = SPLAT(M.words[t]);
     ROUND(t);
   }
 # endif
+
+  W0[0] = W[0];
+  W0[1] = W[1];
+  W0[2] = W[2];
 
   a0 = a;
   b0 = b;
