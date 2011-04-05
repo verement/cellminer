@@ -1,6 +1,5 @@
 
 # include <stdint.h>
-# include <stdlib.h>
 # include <altivec.h>
 # include <vec_types.h>
 
@@ -583,7 +582,7 @@ int64_t sha256_search(const message_t M,
     T2 = ADD(ADD(d, T1), SPLAT(H0.words[7]));
 
     /* quick check to see if any element of the last word vector is zero */
-    if (__builtin_expect(vec_any_eq(T2, vec_splat_u32(0)) == 0, 1))
+    if (__builtin_expect(!vec_any_eq(T2, vec_splat_u32(0)), 1))
       continue;
 
     /* we have something interesting; finish the SHA-256 */
@@ -634,16 +633,14 @@ int64_t sha256_search(const message_t M,
 
     /* we have a winner */
 
-    if (vec_extract(borrow, 0) == 1)
+    if (vec_extract(borrow, 0))
       return nonce + 0;
-    if (vec_extract(borrow, 1) == 1)
+    if (vec_extract(borrow, 1))
       return nonce + 1;
-    if (vec_extract(borrow, 2) == 1)
+    if (vec_extract(borrow, 2))
       return nonce + 2;
-    if (vec_extract(borrow, 3) == 1)
+    if (vec_extract(borrow, 3))
       return nonce + 3;
-
-    abort();
   }
 
   return -1;

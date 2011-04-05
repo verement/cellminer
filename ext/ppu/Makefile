@@ -1,13 +1,14 @@
 
-DEFINE		= -DDEBUG -DUNROLL_SHA256
-OPTIMIZE	= -O3 -fno-strict-aliasing -funroll-loops
-MACHINE		= -maltivec
-DEBUG		= -Wall -Werror
+DEFINE		 = -DUNROLL_SHA256
+#DEFINE		+= -DDEBUG
+OPTIMIZE	 = -O3 -fno-strict-aliasing -funroll-loops
+MACHINE		 = -mcpu=cell #-maltivec
+DEBUG		 = -Wall -Werror
 
-CFLAGS		= $(DEFINE) $(OPTIMIZE) $(MACHINE) $(DEBUG) $(INCLUDEPATH)
-LDFLAGS		= $(LIBPATH)
+CFLAGS		 = $(DEFINE) $(OPTIMIZE) $(MACHINE) $(DEBUG) $(INCLUDEPATH)
+LDFLAGS		 = $(LIBPATH)
 
-CC		= gcc
+CC		 = gcc
 
 worker.a: worker.o sha256.o util.o
 	$(AR) rc $@ $?
