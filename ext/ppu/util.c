@@ -1,0 +1,51 @@
+
+# ifdef DEBUG
+#  include <stdarg.h>
+#  include <stdio.h>
+# endif
+
+# include "util.h"
+# include "sha256.h"
+
+int debugging;
+
+# define HEXDIGITS "0123456789abcdef"
+
+void hex(char *buf, const char *ptr, uint32_t len)
+{
+  while (len--) {
+    *buf++ = HEXDIGITS[*ptr   / 16];
+    *buf++ = HEXDIGITS[*ptr++ % 16];
+  }
+
+  *buf = 0;
+}
+
+void debug(const char *fmt, ...)
+{
+# ifdef DEBUG
+  va_list args;
+
+  if (!debugging)
+    return;
+
+  va_start(args, fmt);
+  fprintf(stderr, "PPU: ");
+  vfprintf(stderr, fmt, args);
+  fputc('\n', stderr);
+  va_end(args);
+# endif
+}
+
+void debug_hash(const hash_t *hash, const char *desc)
+{
+# ifdef DEBUG
+  char buf[65];
+
+  if (!debugging)
+    return;
+
+  hex(buf, (const char *) hash, 32);
+  debug("%s = %s", desc, buf);
+# endif
+}

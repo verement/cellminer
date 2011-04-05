@@ -1,7 +1,9 @@
 
 RUBY	= ruby1.9.1
 
-ext/spu_miner.so: ext/Makefile ext/*.[ch] ext/spu/Makefile ext/spu/*.[chs]
+ext/cellminer.so: ext/Makefile ext/*.[ch]  \
+		ext/spu/Makefile ext/spu/*.[chs]  \
+		ext/ppu/Makefile ext/ppu/*.[chs]
 	$(MAKE) -C ext
 
 ext/Makefile: ext/extconf.rb ext/depend

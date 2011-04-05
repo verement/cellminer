@@ -218,12 +218,11 @@ VALUE i_allocate(VALUE klass)
   return Data_Wrap_Struct(klass, 0, i_free, miner);
 }
 
-void Init_spu_miner(void)
+void Init_spu_miner(VALUE container)
 {
-  VALUE mBitcoin, cSPUMiner;
+  VALUE cSPUMiner;
 
-  mBitcoin = rb_const_get(rb_mKernel, rb_intern("Bitcoin"));
-  cSPUMiner = rb_define_class_under(mBitcoin, "SPUMiner", rb_cObject);
+  cSPUMiner = rb_define_class_under(container, "SPUMiner", rb_cObject);
   rb_define_alloc_func(cSPUMiner, i_allocate);
 
   rb_define_method(cSPUMiner, "initialize", m_initialize, -1);
