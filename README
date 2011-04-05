@@ -1,0 +1,39 @@
+
+This is a Bitcoin miner for the Cell Broadband Engine Architecture (CBEA). It
+was developed on a PS3 using Debian GNU/Linux 6.0.1.
+
+Requirements
+============
+
+Debian Packages [aptitude install ...]
+---------------
+ * make
+ * gcc
+ * binutils-spu
+ * ruby1.9.1-dev
+ * libspe2-dev
+ > spu-gcc
+ > binutils
+ > ruby1.9.1
+ > libspe2-2
+
+(packages marked > should be included automatically as dependencies of
+ packages marked *)
+
+Ruby Gems [gem1.9.1 install ...]
+---------
+ * rest-client
+
+Building
+========
+
+ $ make
+
+Running
+=======
+
+ $ ./cellminer --help
+
+RPC username and password will default to those found in
+~/.bitcoin/bitcoin.conf.
+
