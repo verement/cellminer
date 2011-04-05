@@ -14,7 +14,7 @@ Debian Packages [aptitude install ...]
  * binutils-spu
  * ruby1.9.1-dev
  * libspe2-dev
- > spu-gcc
+ > gcc-spu
  > binutils
  > ruby1.9.1
  > libspe2-2
