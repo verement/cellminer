@@ -17,6 +17,7 @@
 #
 
 DEFINE		 = -DUNROLL_SHA256
+DEFINE		+= -Dinline="inline __attribute__((always_inline))"
 #DEFINE		+= -DDEBUG
 #OPTIMIZE	 = -O2 -fno-strict-aliasing -funroll-loops -ftree-vectorize
 OPTIMIZE	 = -O3 -fno-strict-aliasing -funroll-loops
