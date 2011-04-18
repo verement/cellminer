@@ -81,6 +81,9 @@ module Bitcoin
         respdata = RestClient.post(url, postdata, headers)
       rescue Errno::EINTR
         retry
+      rescue Errno::ETIMEDOUT, Errno::EHOSTUNREACH => err
+        $stderr.puts err
+        retry
       end
 
       resp = JSON.parse(respdata)
