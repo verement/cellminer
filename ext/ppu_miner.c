@@ -156,6 +156,8 @@ VALUE i_allocate(VALUE klass)
   if (posix_memalign((void **) &miner, 128, sizeof(*miner)))
     rb_raise(rb_eRuntimeError, "unable to allocate aligned memory");
 
+  miner->params.flags = 0;
+
   return Data_Wrap_Struct(klass, 0, free, miner);
 }
 
