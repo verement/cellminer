@@ -169,10 +169,10 @@ class CellMiner
 
       rate = miners.inject(0) {|sum, thr| sum + (thr[:rate] || 0) }
 
-      say "Got work... %.3f Mhash/s" % (rate / 1_000_000)
+      msg = "Got work... %.3f Mhash/s" % (rate / 1_000_000)
 
       if prev_block != last_block
-        say "    prev = %s" % prev_block
+        msg << "\n    prev = %s" % prev_block
         last_block = prev_block
 
         work_queue.clear
@@ -180,9 +180,11 @@ class CellMiner
       end
 
       if target != last_target
-        say "  target = %s" % target
+        msg << "\n  target = %s" % target
         last_target = target
       end
+
+      say msg
 
       work[:range] = QUANTUM
 
@@ -198,7 +200,7 @@ class CellMiner
         # send back to server...
         response = sendwork(solution)
 
-        say "=> Solved? (%s)\n    hash = %s\n  target = %s" %
+        say "Solved? (%s)\n    hash = %s\n  target = %s" %
           [response, block_hash(solution), target]
 
         work_queue.clear
@@ -214,7 +216,7 @@ class CellMiner
   private
 
   def say(info)
-    puts info
+    puts "[%s] %s" % [Time.now.strftime("%Y-%m-%d %H:%M:%S"), info]
   end
 
   def debug(info)
