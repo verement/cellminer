@@ -82,7 +82,7 @@ module Bitcoin
       rescue Errno::EINTR
         retry
       rescue Errno::ETIMEDOUT, Errno::EHOSTUNREACH => err
-        $stderr.puts err
+        warn err
         retry
       end
 

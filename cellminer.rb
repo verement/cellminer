@@ -18,7 +18,6 @@
 
 require 'optparse'
 require 'thread'
-require 'timeout'
 require 'pp'
 
 require './bitcoin.rb'
@@ -27,10 +26,9 @@ require './ext/cellminer.so'
 require './sha256.rb'
 
 class CellMiner
-  include Timeout
-
   attr_accessor :options
   attr_reader :rpc
+  attr_reader :mutex
 
   class AbortMining < StandardError; end
 
@@ -39,7 +37,7 @@ class CellMiner
   NSLICES = 128
   QUANTUM = 0x100000000 / NSLICES
 
-  TIMEOUT = 60
+  INTERVAL = 60
 
   def initialize(argv = [])
     @options = Hash.new
@@ -62,8 +60,9 @@ class CellMiner
       end
 
       opts.on("--spe N", Integer,
-              "Number of SPEs to use (default %d)" % options[:num_spe]) do |n|
-        options[:num_spe] = n
+              "Number of SPEs to use (default %d)" %
+              options[:num_spe]) do |opt|
+        options[:num_spe] = opt
       end
 
       opts.on("--ppe N", Integer,
@@ -102,6 +101,7 @@ class CellMiner
     params[:password] = options[:password] if options[:password]
 
     @rpc = Bitcoin.rpc_proxy(params, USER_AGENT)
+    @mutex = Mutex.new
   end
 
   def main
@@ -109,6 +109,8 @@ class CellMiner
       puts "Current balance = #{rpc.getbalance} BTC"
       exit
     end
+
+    say "%s starting" % USER_AGENT
 
     work_queue = Queue.new
     solved_queue = Queue.new
@@ -139,14 +141,14 @@ class CellMiner
     miners = []
 
     if options[:num_spe] > 0
-      puts "Creating %d SPU miner(s)..." % options[:num_spe]
+      say "Creating %d SPU miner(s)..." % options[:num_spe]
       options[:num_spe].times do
         miners << Thread.new(Bitcoin::SPUMiner, &miner_proc)
       end
     end
 
     if options[:num_ppe] > 0
-      puts "Creating %d PPU miner(s)..." % options[:num_ppe]
+      say "Creating %d PPU miner(s)..." % options[:num_ppe]
       options[:num_ppe].times do
         miners << Thread.new(Bitcoin::PPUMiner, &miner_proc)
       end
@@ -157,66 +159,71 @@ class CellMiner
       exit 1
     end
 
-    last_block  = nil
-    last_target = nil
+    # work gathering thread
+    getwork_thread = Thread.new do
+      last_block  = nil
+      last_target = nil
 
+      loop do
+        work = getwork
+
+        prev_block = work[:data][4..35].reverse.unpack('H*').first
+        target = work[:target].unpack('H*').first
+
+        rate = miners.inject(0) {|sum, thr| sum + (thr[:rate] || 0) }
+
+        msg = "Got work... %.3f Mhash/s, %d backlogged work items" %
+          [rate / 1_000_000, work_queue.length]
+
+        if target != last_target
+          last_target = target
+          msg << "\n  target = %s" % target
+        end
+
+        if prev_block != last_block
+          last_block = prev_block
+          msg << "\n    prev = %s" % prev_block
+
+          work_queue.clear
+          miners.each {|thr| thr.raise AbortMining }
+
+          solved_queue.clear
+        end
+
+        say msg
+
+        work[:range] = QUANTUM
+        NSLICES.times do |i|
+          work[:start_nonce] = i * work[:range]
+          work_queue << work.dup
+        end
+
+        sleep INTERVAL
+      end
+    end
+
+    # solution gathering thread
     loop do
-      # get work, unpack hex strings and fix byte ordering
-      work = getwork
+      solution = solved_queue.shift
 
-      prev_block = work[:data][4..35].reverse.unpack('H*').first
-      target = work[:target].unpack('H*').first
+      # send back to server...
+      response = sendwork(solution)
 
-      rate = miners.inject(0) {|sum, thr| sum + (thr[:rate] || 0) }
-
-      msg = "Got work... %.3f Mhash/s" % (rate / 1_000_000)
-
-      if prev_block != last_block
-        msg << "\n    prev = %s" % prev_block
-        last_block = prev_block
-
-        work_queue.clear
-        miners.each {|thr| thr.raise AbortMining }
-      end
-
-      if target != last_target
-        msg << "\n  target = %s" % target
-        last_target = target
-      end
-
-      say msg
-
-      work[:range] = QUANTUM
-
-      NSLICES.times do |i|
-        work[:start_nonce] = i * work[:range]
-        work_queue << work.dup
-      end
-
-      begin
-        solution = nil
-        timeout(TIMEOUT) { solution = solved_queue.shift }
-
-        # send back to server...
-        response = sendwork(solution)
-
-        say "Solved? (%s)\n    hash = %s\n  target = %s" %
-          [response, block_hash(solution), target]
-
-        work_queue.clear
-      rescue Timeout::Error
-        debug "Timeout"
-        next if options[:test]
-      end
+      say "Solved? (%s)\n  %s hash = %s" %
+        [response, response == true ? '*' : ' ', block_hash(solution)]
 
       return if options[:test]
+
+      getwork_thread.run if response == false
     end
   end
 
   private
 
   def say(info)
-    puts "[%s] %s" % [Time.now.strftime("%Y-%m-%d %H:%M:%S"), info]
+    mutex.synchronize do
+      puts "[%s] %s" % [Time.now.strftime("%Y-%m-%d %H:%M:%S"), info]
+    end
   end
 
   def debug(info)
@@ -233,6 +240,8 @@ class CellMiner
 
   def getwork
     work = options[:test] ? testwork : rpc.getwork
+
+    # unpack hex strings and fix byte ordering
     work = work.map do |k, v|
       k = k.to_sym
       v = [v].pack('H*')
