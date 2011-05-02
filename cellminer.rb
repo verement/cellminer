@@ -37,6 +37,8 @@ class CellMiner
   NSLICES = 128
   QUANTUM = 0x100000000 / NSLICES
 
+  QUEUE_MAX = 256
+
   INTERVAL = 60
 
   def initialize(argv = [])
@@ -197,6 +199,9 @@ class CellMiner
           work[:start_nonce] = i * work[:range]
           work_queue << work.dup
         end
+
+        # trim excess work
+        work_queue.shift(true) while work_queue.length > QUEUE_MAX
 
         sleep INTERVAL
       end
