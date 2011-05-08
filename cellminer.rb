@@ -46,7 +46,7 @@ class CellMiner
 
     options[:num_spe] = 6
     options[:num_ppe] = 0
-    options[:debug] = ENV['DEBUG']
+    options[:debug] = $DEBUG
 
     OptionParser.new do |opts|
       opts.banner = "Usage: #{$0} [options] [server]"
