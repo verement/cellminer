@@ -42,8 +42,8 @@ module Bitcoin
     uri = URI::HTTP.build(default.merge(server))
 
     if username
-      uri.user     = URI.escape username, /./
-      uri.password = URI.escape password, /./
+      uri.user     = URI.escape username, /\W/
+      uri.password = URI.escape password, /\W/
     end
 
     RPCProxy.new(uri, user_agent)
