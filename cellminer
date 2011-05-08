@@ -24,5 +24,6 @@ require './cellminer.rb'
 begin
   CellMiner.new(ARGV).main
 rescue Interrupt
+  $stderr.puts
   $stderr.puts "Interrupt"
 end
