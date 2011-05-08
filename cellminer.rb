@@ -20,10 +20,10 @@ require 'optparse'
 require 'thread'
 require 'pp'
 
-require './bitcoin.rb'
-require './ext/cellminer.so'
+require_relative 'bitcoin.rb'
+require_relative 'ext/cellminer.so'
 
-require './sha256.rb'
+require_relative 'sha256.rb'
 
 class CellMiner
   attr_accessor :options

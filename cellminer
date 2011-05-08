@@ -18,8 +18,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-require 'rubygems'
-require './cellminer.rb'
+require_relative 'cellminer.rb'
 
 begin
   CellMiner.new(ARGV).main
