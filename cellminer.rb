@@ -161,13 +161,15 @@ class CellMiner
       exit 1
     end
 
-    # work gathering thread
-    getwork_thread = Thread.new do
+    getwork_queue = Queue.new
+
+    # work processing thread
+    Thread.new do
       last_block  = nil
       last_target = nil
 
       loop do
-        work = getwork
+        work = getwork_queue.shift
 
         prev_block = work[:data][4..35].reverse.unpack('H*').first
         target = work[:target].unpack('H*').first
@@ -202,6 +204,27 @@ class CellMiner
 
         # trim excess work
         work_queue.shift(true) while work_queue.length > QUEUE_MAX
+      end
+    end
+
+    # work gathering thread
+    getwork_thread = Thread.new do
+      loop do
+        getwork_queue << getwork do |poll_rpc|
+          unless @long_polling
+            @long_polling = true
+            say "Starting long poll"
+
+            # long polling thread
+            Thread.new do
+              loop do
+                work = getwork(poll_rpc)
+                say "Long poll returned"
+                getwork_queue << work
+              end
+            end
+          end
+        end
 
         sleep INTERVAL
       end
@@ -243,8 +266,8 @@ class CellMiner
     data
   end
 
-  def getwork
-    work = options[:test] ? testwork : rpc.getwork
+  def getwork(rpc = rpc, &block)
+    work = options[:test] ? testwork : rpc.getwork(&block)
 
     # unpack hex strings and fix byte ordering
     work = work.map do |k, v|

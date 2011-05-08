@@ -50,13 +50,14 @@ module Bitcoin
   end
 
   class RPCProxy
-    attr_reader :url, :user_agent
+    attr_reader :uri, :user_agent, :timeout
 
     RETRY_INTERVAL = 30
+    LONG_POLL_TIMEOUT = 60 * 60 * 12
 
     class JSONRPCException < RuntimeError; end
 
-    def initialize(uri, user_agent = nil)
+    def initialize(uri, user_agent = nil, timeout = nil)
       case uri
       when URI
       when String
@@ -65,8 +66,9 @@ module Bitcoin
         raise ArgumentError, "bad URI given"
       end
 
-      @url = uri.to_s
+      @uri = uri
       @user_agent = user_agent
+      @timeout = timeout
     end
 
     def method_missing(method, *params)
@@ -80,7 +82,11 @@ module Bitcoin
       headers["User-Agent"] = user_agent if user_agent
 
       begin
-        respdata = RestClient.post(url, postdata, headers)
+        respdata = RestClient::Request.execute(method: :post,
+                                               url: uri.to_s,
+                                               payload: postdata,
+                                               headers: headers,
+                                               timeout: timeout)
       rescue Errno::EINTR
         retry
       rescue Errno::ETIMEDOUT, Errno::EHOSTUNREACH,
@@ -98,11 +104,11 @@ module Bitcoin
         raise JSONRPCException, resp['error']
       end
 
-      if block_given?
-        yield resp['result']
-      else
-        resp['result']
+      if block_given? and poll_path = respdata.headers[:x_long_polling]
+        yield self.class.new(uri + poll_path, user_agent, LONG_POLL_TIMEOUT)
       end
+
+      resp['result']
     end
   end
 end
