@@ -52,6 +52,8 @@ module Bitcoin
   class RPCProxy
     attr_reader :url, :user_agent
 
+    RETRY_INTERVAL = 30
+
     class JSONRPCException < RuntimeError; end
 
     def initialize(uri, user_agent = nil)
@@ -81,8 +83,13 @@ module Bitcoin
         respdata = RestClient.post(url, postdata, headers)
       rescue Errno::EINTR
         retry
-      rescue Errno::ETIMEDOUT, Errno::EHOSTUNREACH => err
+      rescue Errno::ETIMEDOUT, Errno::EHOSTUNREACH,
+          RestClient::RequestTimeout => err
         warn err
+        retry
+      rescue RestClient::BadGateway, RestClient::BadRequest => err
+        warn "%s; waiting %d seconds" % [err, RETRY_INTERVAL]
+        sleep RETRY_INTERVAL
         retry
       end
 
