@@ -143,14 +143,14 @@ class CellMiner
     miners = []
 
     if options[:num_spe] > 0
-      say "Creating %d SPU miner(s)..." % options[:num_spe]
+      say "Creating %d SPU miner(s)" % options[:num_spe]
       options[:num_spe].times do
         miners << Thread.new(Bitcoin::SPUMiner, &miner_proc)
       end
     end
 
     if options[:num_ppe] > 0
-      say "Creating %d PPU miner(s)..." % options[:num_ppe]
+      say "Creating %d PPU miner(s)" % options[:num_ppe]
       options[:num_ppe].times do
         miners << Thread.new(Bitcoin::PPUMiner, &miner_proc)
       end
