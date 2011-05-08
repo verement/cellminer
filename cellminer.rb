@@ -196,7 +196,7 @@ class CellMiner
 
         work[:range] = QUANTUM
         NSLICES.times do |i|
-          work[:start_nonce] = i * work[:range]
+          work[:start_nonce] = i * QUANTUM
           work_queue << work.dup
         end
 
