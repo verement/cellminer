@@ -123,12 +123,12 @@ class CellMiner
       loop do
         begin
           work = work_queue.shift
-          debug "#{miner} Mining %08x..%08x\n" %
+          debug "#{miner} Mining %08x..%08x" %
             [work[:start_nonce], work[:start_nonce] + work[:range] - 1]
           start = Time.now
           if solution = miner.run(work[:data], work[:target], work[:midstate],
                                   work[:start_nonce], work[:range])
-            debug "#{miner} Found solution\n"
+            debug "#{miner} Found solution"
             solved_queue << solution
           else
             Thread.current[:rate] = work[:range] / (Time.now - start)
