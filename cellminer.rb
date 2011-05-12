@@ -140,7 +140,28 @@ class CellMiner
 
     Thread.abort_on_exception = true
 
-    miners = []
+    miners = ThreadGroup.new
+    class << miners
+      include Enumerable
+
+      alias << add
+
+      def empty?
+        list.empty?
+      end
+
+      def each(&block)
+        list.each(&block)
+      end
+
+      def rate
+        inject(0.0) {|sum, thread| sum + (thread[:rate] || 0) }
+      end
+
+      def abort
+        each {|thread| thread.raise AbortMining }
+      end
+    end
 
     if options[:num_spe] > 0
       say "Creating %d SPU miner(s)" % options[:num_spe]
@@ -174,10 +195,8 @@ class CellMiner
         prev_block = work[:data][4..35].reverse.unpack('H*').first
         target = work[:target].unpack('H*').first
 
-        rate = miners.inject(0) {|sum, thr| sum + (thr[:rate] || 0) }
-
         msg = "Got work... %.3f Mhash/s, %d backlogged work items" %
-          [rate / 1_000_000, work_queue.length]
+          [miners.rate / 1_000_000, work_queue.length]
 
         if target != last_target
           last_target = target
@@ -189,8 +208,7 @@ class CellMiner
           msg << "\n    prev = %s" % prev_block
 
           work_queue.clear
-          miners.each {|thr| thr.raise AbortMining }
-
+          miners.abort
           solved_queue.clear
         end
 
