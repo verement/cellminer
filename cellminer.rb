@@ -17,6 +17,7 @@
 #
 
 require 'optparse'
+require 'uri'
 require 'thread'
 require 'pp'
 
@@ -95,10 +96,19 @@ class CellMiner
         'localhost'
       end
 
-    host, port = server.split(':')
+    params = {}
 
-    params = {:host => host}
+    uri = URI.parse(server) rescue nil
+    if uri.kind_of? URI::HTTP
+      host, port = uri.host, uri.port
+      params[:path] = uri.path
+    else
+      host, port = server.split(':')
+    end
+
+    params[:host] = host
     params[:port] = port.to_i if port
+
     params[:username] = options[:username] if options[:username]
     params[:password] = options[:password] if options[:password]
 
