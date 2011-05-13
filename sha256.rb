@@ -16,100 +16,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-class UInt32
-  attr_reader :value
-
-  def self.[](value)
-    new(value)
-  end
-
-  def initialize(value)
-    @value = value & 0xffffffff
-  end
-
-  def to_i
-    value
-  end
-
-  def coerce(other)
-    case other
-    when Integer
-      return self.class.new(other), self
-    when Expression
-      return other, Expression::Atom::Integer::UInt32.new(value)
-    else
-      raise TypeError, "#{self.class} can't be coerced into #{other.class}"
-    end
-  end
-
-  def +(other)
-    case other
-    when UInt32
-      other = other.value
-    when Integer
-    else
-      x, y = other.coerce(self)
-      return x + y
-    end
-
-    self.class.new(@value + other)
-  end
-
-  def ^(other)
-    case other
-    when UInt32
-      other = other.value
-    when Integer
-    else
-      x, y = other.coerce(self)
-      return x ^ y
-    end
-
-    self.class.new(@value ^ other)
-  end
-
-  def &(other)
-    case other
-    when UInt32
-      other = other.value
-    when Integer
-    else
-      x, y = other.coerce(self)
-      return x & y
-    end
-
-    self.class.new(@value & other)
-  end
-
-  def |(other)
-    case other
-    when UInt32
-      other = other.value
-    when Integer
-    else
-      x, y = other.coerce(self)
-      return x | y
-    end
-
-    self.class.new(@value | other)
-  end
-
-  def >>(bits)
-    self.class.new(@value >> bits)
-  end
-
-  def <<(bits)
-    self.class.new(@value << bits)
-  end
-
-  def ~
-    self.class.new(~@value)
-  end
-end
-
 class SHA256
-  CLASS = UInt32
-
   K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
        0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
        0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
@@ -130,56 +37,59 @@ class SHA256
   H0 = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
 
-  def self.Ch(x, y, z)
-    (x & y) ^ (~x & z)
+  module Functions
+    def Ch(y, z)
+      (self & y) ^ (~self & z)
+    end
+
+    def Maj(y, z)
+      (self & y) ^ (self & z) ^ (y & z)
+    end
+
+    def SHR(n)
+      self >> n
+    end
+
+    def ROTR(n)
+      (self >> n) | (self << (32 - n))
+    end
+
+    def Sigma0
+      ROTR(2) ^ ROTR(13) ^ ROTR(22)
+    end
+
+    def Sigma1
+      ROTR(6) ^ ROTR(11) ^ ROTR(25)
+    end
+
+    def sigma0
+      ROTR(7) ^ ROTR(18) ^ SHR(3)
+    end
+
+    def sigma1
+      ROTR(17) ^ ROTR(19) ^ SHR(10)
+    end
   end
 
-  def self.Maj(x, y, z)
-    (x & y) ^ (x & z) ^ (y & z)
-  end
+  def initialize(wrap = UInt32, init = H0)
+    @wrap = wrap.dup.class_exec { include Functions }
 
-  def self.SHR(n, x)
-    x >> n
-  end
-
-  def self.ROTR(n, x)
-    (x >> n) | (x << (32 - n))
-  end
-
-  def self.SIGMA0(x)
-    self.ROTR(2, x) ^ self.ROTR(13, x) ^ self.ROTR(22, x)
-  end
-
-  def self.SIGMA1(x)
-    self.ROTR(6, x) ^ self.ROTR(11, x) ^ self.ROTR(25, x)
-  end
-
-  def self.sigma0(x)
-    self.ROTR(7, x) ^ self.ROTR(18, x) ^ self.SHR(3, x)
-  end
-
-  def self.sigma1(x)
-    self.ROTR(17, x) ^ self.ROTR(19, x) ^ self.SHR(10, x)
-  end
-
-  def initialize(state = H0)
-    @H = state.map {|v| CLASS[v] }
-    @length = 0
-
-    @partial = ""
+    @H = init.map {|v| @wrap.new(v) }
+    @K =    K.map {|v| @wrap.new(v) }
   end
 
   def hash_block(m)
-    m.map! {|v| CLASS[v] }
+    m = m.map {|v| @wrap.new(v) }
 
     a, b, c, d, e, f, g, h = @H
     w = Array.new(16)
 
-    (0..15).each do |t|
-      w[t] = m[t]
+    t1, t2 = nil
 
-      t1 = h + self.class.SIGMA1(e) + self.class.Ch(e, f, g) + K[t] + w[t]
-      t2 = self.class.SIGMA0(a) + self.class.Maj(a, b, c)
+    round = Proc.new do |t|
+      t1 = h + e.Sigma1 + e.Ch(f, g) + @K[t] + w[t % 16]
+      t2 = a.Sigma0 + a.Maj(b, c)
+
       h = g
       g = f
       f = e
@@ -190,69 +100,133 @@ class SHA256
       a = t1 + t2
     end
 
-    (16..63).each do |t|
-      w[t % 16] = self.class.sigma1(w[(t - 2) % 16]) + w[(t - 7) % 16] +
-        self.class.sigma0(w[(t - 15) % 16]) + w[(t - 16) % 16]
+    (0..15).each do |t|
+      w[t] = m[t]
+      round.(t)
+    end
 
-      t1 = h + self.class.SIGMA1(e) + self.class.Ch(e, f, g) + K[t] + w[t % 16]
-      t2 = self.class.SIGMA0(a) + self.class.Maj(a, b, c)
-      h = g
-      g = f
-      f = e
-      e = d + t1
-      d = c
-      c = b
-      b = a
-      a = t1 + t2
+    (16..63).each do |t|
+      w[t % 16] = w[(t -  2) % 16].sigma1 +
+                  w[(t -  7) % 16]        +
+                  w[(t - 15) % 16].sigma0 +
+                  w[(t - 16) % 16]
+      round.(t)
     end
 
     @H = [a + @H[0], b + @H[1], c + @H[2], d + @H[3],
           e + @H[4], f + @H[5], g + @H[6], h + @H[7]]
-  end
-
-  def update(bytes)
-    @length += bytes.length
-    @partial += bytes
-
-    while @partial.length >= 64
-      hash_block(@partial[0..63].unpack('N16'))
-      @partial = @partial[64..-1]
-    end
 
     self
   end
 
-  alias << update
-
-  def finish(bitlen = @length * 8)
-    @partial += "\x80"
-
-    if @partial.length > 56
-      @partial += "\0" * (64 - @partial.length)
-      hash_block(@partial.unpack('N16'))
-      @partial = ""
-    end
-
-    @partial += "\0" * (56 - @partial.length)
-    @partial += [bitlen >> 32, bitlen & 0xffffffff].pack('NN')
-
-    hash_block(@partial.unpack('N16'))
-
-    @partial = nil
-    @length.freeze
-
+  def update(bytes)
+    bytes.unpack('N*').each_slice(16) {|b| hash_block(b) }
     self
   end
 
   def value
-    @H
+    @H.map(&:value)
   end
 
   def digest
-    @H.map {|v| v.value }.pack('N*')
+    value.pack('N*')
   end
 
   def hexdigest
-    @H.map {|v| "%08x" % v.value }.join
+    value.map {|v| "%08x" % v }.join
+  end
+end
+
+class UInt32
+  attr_reader :value
+
+  def initialize(value)
+    @value = value & 0xffffffff
+  end
+
+  def to_s
+    "%08x" % @value
+  end
+
+  def +(other)
+    self.class.new(@value + other.value)
+  end
+
+  def ^(other)
+    self.class.new(@value ^ other.value)
+  end
+
+  def &(other)
+    self.class.new(@value & other.value)
+  end
+
+  def |(other)
+    self.class.new(@value | other.value)
+  end
+
+  def ~@
+    self.class.new(~@value)
+  end
+
+  def >>(bits)
+    self.class.new(@value >> bits)
+  end
+
+  def <<(bits)
+    self.class.new(@value << bits)
+  end
+end
+
+# Unit tests
+if __FILE__ == $0
+  require 'test/unit'
+
+  class TestSHA256 < Test::Unit::TestCase
+    def setup
+      @sha256 = SHA256.new
+    end
+
+    def test_one_block_message
+      @sha256.hash_block([0b01100001011000100110001110000000,
+                         0, 0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, 0, 0, 0x18])
+      assert_equal(@sha256.value,
+                   [0xba7816bf, 0x8f01cfea, 0x414140de, 0x5dae2223,
+                    0xb00361a3, 0x96177a9c, 0xb410ff61, 0xf20015ad])
+    end
+
+    def test_multi_block_message
+      m = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
+      padded = m.unpack('N*') + [0x80000000] + [0] * 15 + [0, 0x1c0]
+
+      @sha256.hash_block(padded[0, 16])
+      assert_equal(@sha256.digest,
+                   [0x85e655d6, 0x417a1795, 0x3363376a, 0x624cde5c,
+                    0x76e09589, 0xcac5f811, 0xcc4b32c1, 0xf20e533a].pack('N*'))
+
+      @sha256.hash_block(padded[16, 16])
+      assert_equal(@sha256.hexdigest,
+                   "248d6a61" "d20638b8" "e5c02693" "0c3e6039"  \
+                   "a33ce459" "64ff2167" "f6ecedd4" "19db06c1")
+    end
+
+    def test_long_message
+      skip "Time-consuming long message test not run (use arg 'long')" unless
+        ARGV.include? "long"
+
+      m = "a" * 1_000_000
+      padded = m.unpack('N*') << 0x80000000
+      padded += [0] * (15 - padded.length % 16) + [m.length * 8]
+
+      assert_equal(padded.length % 16, 0)
+
+      padded.each_slice(16) do |block|
+        @sha256.hash_block(block)
+      end
+
+      assert_equal(@sha256.value,
+                   [0xcdc76e5c, 0x9914fb92, 0x81a1c7e2, 0x84d73e67,
+                    0xf1809a48, 0xa497200e, 0x046d39cc, 0xc7112cd0])
+    end
   end
 end
