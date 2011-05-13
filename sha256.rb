@@ -84,11 +84,9 @@ class SHA256
     a, b, c, d, e, f, g, h = @H
     w = Array.new(16)
 
-    t1, t2 = nil
-
     round = Proc.new do |t|
       t1 = h + e.Sigma1 + e.Ch(f, g) + @K[t] + w[t % 16]
-      t2 = a.Sigma0 + a.Maj(b, c)
+      t2 =     a.Sigma0 + a.Maj(b, c)
 
       h = g
       g = f
@@ -100,12 +98,12 @@ class SHA256
       a = t1 + t2
     end
 
-    (0..15).each do |t|
+    0.upto(15) do |t|
       w[t] = m[t]
       round.(t)
     end
 
-    (16..63).each do |t|
+    16.upto(63) do |t|
       w[t % 16] = w[(t -  2) % 16].sigma1 +
                   w[(t -  7) % 16]        +
                   w[(t - 15) % 16].sigma0 +
