@@ -1,3 +1,4 @@
+# -*- encoding: utf-8 -*-
 #
 # cellminer - Bitcoin miner for the Cell Broadband Engine Architecture
 # Copyright © 2011 Robert Leslie
@@ -37,7 +38,19 @@ class SHA256
   H0 = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
         0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
 
+  module Operations
+    def SHR(n)
+      self >> n
+    end
+
+    def ROTR(n)
+      (self >> n) | (self << (32 - n))
+    end
+  end
+
   module Functions
+    include Operations
+
     def Ch(y, z)
       (self & y) ^ (~self & z)
     end
@@ -46,27 +59,19 @@ class SHA256
       (self & y) ^ (self & z) ^ (y & z)
     end
 
-    def SHR(n)
-      self >> n
-    end
-
-    def ROTR(n)
-      (self >> n) | (self << (32 - n))
-    end
-
-    def Sigma0
+    def Σ₀
       ROTR(2) ^ ROTR(13) ^ ROTR(22)
     end
 
-    def Sigma1
+    def Σ₁
       ROTR(6) ^ ROTR(11) ^ ROTR(25)
     end
 
-    def sigma0
+    def σ₀
       ROTR(7) ^ ROTR(18) ^ SHR(3)
     end
 
-    def sigma1
+    def σ₁
       ROTR(17) ^ ROTR(19) ^ SHR(10)
     end
   end
@@ -79,34 +84,31 @@ class SHA256
   end
 
   def hash_block(m)
-    m = m.map {|v| @wrap.new(v) }
-
+    w = m.map {|v| @wrap.new(v) }
     a, b, c, d, e, f, g, h = @H
-    w = Array.new(16)
 
     round = Proc.new do |t|
-      t1 = h + e.Sigma1 + e.Ch(f, g) + @K[t] + w[t % 16]
-      t2 =     a.Sigma0 + a.Maj(b, c)
+      t₁ = h + e.Σ₁ + e.Ch(f, g) + @K[t] + w[t % 16]
+      t₂ =     a.Σ₀ + a.Maj(b, c)
 
       h = g
       g = f
       f = e
-      e = d + t1
+      e = d + t₁
       d = c
       c = b
       b = a
-      a = t1 + t2
+      a = t₁ + t₂
     end
 
     0.upto(15) do |t|
-      w[t] = m[t]
       round.(t)
     end
 
     16.upto(63) do |t|
-      w[t % 16] = w[(t -  2) % 16].sigma1 +
-                  w[(t -  7) % 16]        +
-                  w[(t - 15) % 16].sigma0 +
+      w[t % 16] = w[(t -  2) % 16].σ₁ +
+                  w[(t -  7) % 16]    +
+                  w[(t - 15) % 16].σ₀ +
                   w[(t - 16) % 16]
       round.(t)
     end
