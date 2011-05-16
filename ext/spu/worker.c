@@ -64,8 +64,8 @@ int work_on(struct worker_params *params)
 	params->start_nonce, params->range);
 
   nonce = sha256_search(((const message_t *) params->data)[1],
-			*(hash_t *) params->target,
-			*(hash_t *) params->midstate,
+			*(const hash_t *) params->target,
+			*(const hash_t *) params->midstate,
 			params->start_nonce,
 			params->range);
   if (nonce < 0)
