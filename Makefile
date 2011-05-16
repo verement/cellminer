@@ -24,7 +24,7 @@ ext/cellminer.so: ext/Makefile ext/*.[ch]  \
 	$(MAKE) -C ext
 
 ext/Makefile: ext/extconf.rb ext/depend
-	cd ext && $(RUBY) -E ascii-8bit extconf.rb
+	$(RUBY) -C ext -E ascii-8bit extconf.rb
 
 .PHONY: clean
 clean:
