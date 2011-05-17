@@ -18,7 +18,7 @@
 
 require 'uri'
 require 'json'
-require 'rest_client'
+require 'net/http/persistent'
 
 module Bitcoin
   CONFFILE = File.join(ENV['HOME'], '.bitcoin', 'bitcoin.conf')
@@ -39,11 +39,13 @@ module Bitcoin
       :port => 8332,
       :path => '/'
     }
+
     uri = URI::HTTP.build(default.merge(server))
 
+    # This is a workaround; URI needs escaped username and password
     if username
-      uri.user     = URI.escape username, /\W/
-      uri.password = URI.escape password, /\W/
+      uri.user     = URI.escape username, /[^#{URI::PATTERN::UNRESERVED}]/
+      uri.password = URI.escape password, /[^#{URI::PATTERN::UNRESERVED}]/
     end
 
     RPCProxy.new(uri, user_agent)
@@ -61,14 +63,16 @@ module Bitcoin
       case uri
       when URI
       when String
-        uri = URI.parse(uri)
+        uri = uri.to_uri
       else
         raise ArgumentError, "bad URI given"
       end
 
       @uri = uri
       @user_agent = user_agent
-      @timeout = timeout
+      @session = Net::HTTP::Persistent.new
+      @session.open_timeout = timeout # maybe something fixed & shorter like 30s?
+      @session.read_timeout = timeout
     end
 
     def method_missing(method, *params)
@@ -81,34 +85,43 @@ module Bitcoin
       headers = {}
       headers["User-Agent"] = user_agent if user_agent
 
-      begin
-        respdata = RestClient::Request.execute(method: :post,
-                                               url: uri.to_s,
-                                               payload: postdata,
-                                               headers: headers,
-                                               timeout: timeout)
-      rescue Errno::EINTR
-        retry
-      rescue Errno::ETIMEDOUT, Errno::EHOSTUNREACH,
-          RestClient::RequestTimeout => err
-        warn err
-        retry
-      rescue RestClient::BadGateway, RestClient::BadRequest => err
-        warn "%s; waiting %d seconds" % [err, RETRY_INTERVAL]
-        sleep RETRY_INTERVAL
-        retry
+      respdata = nil
+
+      until respdata.kind_of?(Net::HTTPSuccess)
+        req = Net::HTTP::Post.new(@uri.path)
+        # This is a workaround; URI needs escaped username and password strings
+        # but Net:HTTP requires them unescaped (credentials get base64-encoded anyway)
+        req.basic_auth URI.unescape(@uri.user), URI.unescape(@uri.password)
+        req.body = postdata
+        headers.each_pair do |h, v|
+          req[h] = v
+        end
+
+        respdata = @session.request(@uri, req)
+        
+        if respdata.kind_of?(Net::HTTPRequestTimeOut)
+          redo
+        elsif respdata.kind_of?(Net::HTTPClientError)
+          abort(respdata.class.name)
+        elsif respdata.kind_of?(Net::HTTPServerError)
+          warn "%s; waiting %d seconds" % [respdata.class, RETRY_INTERVAL]
+          sleep RETRY_INTERVAL
+          redo
+        end
       end
 
-      resp = JSON.parse(respdata)
+      resp = JSON.parse(respdata.body)
       if resp['error']
         raise JSONRPCException, resp['error']
       end
 
-      if block_given? and poll_path = respdata.headers[:x_long_polling]
-        yield self.class.new(uri + poll_path, user_agent, LONG_POLL_TIMEOUT)
+      # Never tested
+      if block_given? and poll_path = respdata.header['x_long_polling']
+        yield self.class.new(@uri + poll_path, user_agent, LONG_POLL_TIMEOUT)
       end
 
       resp['result']
     end
+
   end
 end
