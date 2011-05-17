@@ -24,7 +24,7 @@ Debian Packages [aptitude install ...]
 
 Ruby Gems [gem1.9.1 install ...]
 ---------
- * rest-client
+ * net-http-persistent
 
 Building
 ========
