@@ -52,8 +52,6 @@ module Bitcoin
   end
 
   class RPCProxy
-    attr_reader :uri, :user_agent, :timeout
-
     RETRY_INTERVAL = 30
     LONG_POLL_TIMEOUT = 60 * 60 * 12
 
@@ -63,16 +61,16 @@ module Bitcoin
       case uri
       when URI
       when String
-        uri = uri.to_uri
+        uri = URI.parse(uri)
       else
         raise ArgumentError, "bad URI given"
       end
 
       @uri = uri
       @user_agent = user_agent
+
       @session = Net::HTTP::Persistent.new
-      @session.open_timeout = timeout # maybe something fixed & shorter like 30s?
-      @session.read_timeout = timeout
+      @session.read_timeout = timeout if timeout
     end
 
     def method_missing(method, *params)
@@ -82,23 +80,21 @@ module Bitcoin
         :params => params
       }.to_json
 
-      headers = {}
-      headers["User-Agent"] = user_agent if user_agent
-
       respdata = nil
 
       until respdata.kind_of?(Net::HTTPSuccess)
         req = Net::HTTP::Post.new(@uri.path)
-        # This is a workaround; URI needs escaped username and password strings
-        # but Net:HTTP requires them unescaped (credentials get base64-encoded anyway)
+
+        # This is a workaround; URI needs escaped username and password
+        # strings but Net:HTTP requires them unescaped (credentials get
+        # base64-encoded anyway)
         req.basic_auth URI.unescape(@uri.user), URI.unescape(@uri.password)
+
+        req['User-Agent'] = @user_agent if @user_agent
         req.body = postdata
-        headers.each_pair do |h, v|
-          req[h] = v
-        end
 
         respdata = @session.request(@uri, req)
-        
+
         if respdata.kind_of?(Net::HTTPRequestTimeOut)
           redo
         elsif respdata.kind_of?(Net::HTTPClientError)
@@ -116,12 +112,11 @@ module Bitcoin
       end
 
       # Never tested
-      if block_given? and poll_path = respdata.header['x_long_polling']
-        yield self.class.new(@uri + poll_path, user_agent, LONG_POLL_TIMEOUT)
+      if block_given? and poll_path = respdata['X-Long-Polling']
+        yield self.class.new(@uri + poll_path, @user_agent, LONG_POLL_TIMEOUT)
       end
 
       resp['result']
     end
-
   end
 end
