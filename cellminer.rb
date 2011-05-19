@@ -102,7 +102,7 @@ class CellMiner
     uri = URI.parse(server) rescue nil
     if uri.kind_of? URI::HTTP
       host, port = uri.host, uri.port
-      params[:path] = uri.path
+      params[:path] = uri.path unless uri.path.empty?
     else
       host, port = server.split(':')
     end
