@@ -52,10 +52,16 @@ module Bitcoin
   end
 
   class RPCProxy
-    RETRY_INTERVAL = 30
     LONG_POLL_TIMEOUT = 60 * 60 * 12
 
-    class JSONRPCException < RuntimeError; end
+    class JSONRPCError < StandardError
+      attr_reader :code
+
+      def initialize(json)
+        super json['message']
+        @code = json['code']
+      end
+    end
 
     def initialize(uri, user_agent = nil, timeout = nil)
       case uri
@@ -74,49 +80,35 @@ module Bitcoin
     end
 
     def method_missing(method, *params)
-      postdata = {
-        :id => 'jsonrpc',
-        :method => method,
-        :params => params
+      request = Net::HTTP::Post.new(@uri.path)
+      request['User-Agent'] = @user_agent if @user_agent
+
+      # This is a workaround; URI needs escaped username and password
+      # strings but Net:HTTP requires them unescaped (credentials get
+      # base64-encoded anyway)
+      request.basic_auth URI.unescape(@uri.user), URI.unescape(@uri.password)
+
+      request.body = {
+        id: 'jsonrpc',
+        method: method,
+        params: params
       }.to_json
 
-      respdata = nil
-
-      until respdata.kind_of?(Net::HTTPSuccess)
-        req = Net::HTTP::Post.new(@uri.path)
-
-        # This is a workaround; URI needs escaped username and password
-        # strings but Net:HTTP requires them unescaped (credentials get
-        # base64-encoded anyway)
-        req.basic_auth URI.unescape(@uri.user), URI.unescape(@uri.password)
-
-        req['User-Agent'] = @user_agent if @user_agent
-        req.body = postdata
-
-        respdata = @session.request(@uri, req)
-
-        if respdata.kind_of?(Net::HTTPRequestTimeOut)
-          redo
-        elsif respdata.kind_of?(Net::HTTPClientError)
-          abort(respdata.class.name)
-        elsif respdata.kind_of?(Net::HTTPServerError)
-          warn "%s; waiting %d seconds" % [respdata.class, RETRY_INTERVAL]
-          sleep RETRY_INTERVAL
-          redo
-        end
+      begin
+        response = @session.request(@uri, request)
+        response.value  # raises error on all non-success responses
+      rescue Errno::EINTR
+        retry
       end
 
-      resp = JSON.parse(respdata.body)
-      if resp['error']
-        raise JSONRPCException, resp['error']
-      end
+      json = JSON.parse(response.body)
+      raise JSONRPCError.new(json['error']) if json['error']
 
-      # Never tested
-      if block_given? and poll_path = respdata['X-Long-Polling']
+      if block_given? and poll_path = response['X-Long-Polling']
         yield self.class.new(@uri + poll_path, @user_agent, LONG_POLL_TIMEOUT)
       end
 
-      resp['result']
+      json['result']
     end
   end
 end

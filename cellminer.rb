@@ -41,6 +41,7 @@ class CellMiner
   QUEUE_MAX = 384
 
   INTERVAL = 60
+  RETRY_INTERVAL = 30
 
   def initialize(argv = [])
     @options = Hash.new
@@ -295,7 +296,13 @@ class CellMiner
   end
 
   def getwork(rpc = rpc, &block)
-    work = options[:test] ? testwork : rpc.getwork(&block)
+    begin
+      work = options[:test] ? testwork : rpc.getwork(&block)
+    rescue => err
+      say "RPC error: %s" % err
+      sleep RETRY_INTERVAL
+      retry
+    end
 
     # unpack hex strings and fix byte ordering
     work = work.map do |k, v|
@@ -309,7 +316,14 @@ class CellMiner
 
   def sendwork(solution)
     data = solution.unpack('N*').pack('V*').unpack('H*').first
-    rpc.getwork(data) rescue nil
+
+    begin
+      rpc.getwork(data)
+    rescue => err
+      say "RPC error: %s" % err
+      sleep RETRY_INTERVAL
+      retry
+    end
   end
 
   def block_hash(data)
