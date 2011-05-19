@@ -18,7 +18,7 @@
 
 require 'uri'
 require 'json'
-require 'rest_client'
+require 'net/http/persistent'
 
 module Bitcoin
   CONFFILE = File.join(ENV['HOME'], '.bitcoin', 'bitcoin.conf')
@@ -39,23 +39,29 @@ module Bitcoin
       :port => 8332,
       :path => '/'
     }
+
     uri = URI::HTTP.build(default.merge(server))
 
+    # This is a workaround; URI needs escaped username and password
     if username
-      uri.user     = URI.escape username, /\W/
-      uri.password = URI.escape password, /\W/
+      uri.user     = URI.escape username, /[^#{URI::PATTERN::UNRESERVED}]/
+      uri.password = URI.escape password, /[^#{URI::PATTERN::UNRESERVED}]/
     end
 
     RPCProxy.new(uri, user_agent)
   end
 
   class RPCProxy
-    attr_reader :uri, :user_agent, :timeout
-
-    RETRY_INTERVAL = 30
     LONG_POLL_TIMEOUT = 60 * 60 * 12
 
-    class JSONRPCException < RuntimeError; end
+    class JSONRPCError < StandardError
+      attr_reader :code
+
+      def initialize(json)
+        super json['message']
+        @code = json['code']
+      end
+    end
 
     def initialize(uri, user_agent = nil, timeout = nil)
       case uri
@@ -68,47 +74,41 @@ module Bitcoin
 
       @uri = uri
       @user_agent = user_agent
-      @timeout = timeout
+
+      @session = Net::HTTP::Persistent.new
+      @session.read_timeout = timeout if timeout
     end
 
     def method_missing(method, *params)
-      postdata = {
-        :id => 'jsonrpc',
-        :method => method,
-        :params => params
+      request = Net::HTTP::Post.new(@uri.path)
+      request['User-Agent'] = @user_agent if @user_agent
+
+      # This is a workaround; URI needs escaped username and password
+      # strings but Net:HTTP requires them unescaped (credentials get
+      # base64-encoded anyway)
+      request.basic_auth URI.unescape(@uri.user), URI.unescape(@uri.password)
+
+      request.body = {
+        id: 'jsonrpc',
+        method: method,
+        params: params
       }.to_json
 
-      headers = {}
-      headers["User-Agent"] = user_agent if user_agent
-
       begin
-        respdata = RestClient::Request.execute(method: :post,
-                                               url: uri.to_s,
-                                               payload: postdata,
-                                               headers: headers,
-                                               timeout: timeout)
+        response = @session.request(@uri, request)
+        response.value  # raises error on all non-success responses
       rescue Errno::EINTR
         retry
-      rescue Errno::ETIMEDOUT, Errno::EHOSTUNREACH,
-          RestClient::RequestTimeout => err
-        warn err
-        retry
-      rescue RestClient::BadGateway, RestClient::BadRequest => err
-        warn "%s; waiting %d seconds" % [err, RETRY_INTERVAL]
-        sleep RETRY_INTERVAL
-        retry
       end
 
-      resp = JSON.parse(respdata)
-      if resp['error']
-        raise JSONRPCException, resp['error']
+      json = JSON.parse(response.body)
+      raise JSONRPCError.new(json['error']) if json['error']
+
+      if block_given? and poll_path = response['X-Long-Polling']
+        yield self.class.new(@uri + poll_path, @user_agent, LONG_POLL_TIMEOUT)
       end
 
-      if block_given? and poll_path = respdata.headers[:x_long_polling]
-        yield self.class.new(uri + poll_path, user_agent, LONG_POLL_TIMEOUT)
-      end
-
-      resp['result']
+      json['result']
     end
   end
 end
