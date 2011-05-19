@@ -86,7 +86,7 @@ module Bitcoin
       # This is a workaround; URI needs escaped username and password
       # strings but Net:HTTP requires them unescaped (credentials get
       # base64-encoded anyway)
-      request.basic_auth URI.unescape(@uri.user), URI.unescape(@uri.password)
+      request.basic_auth(URI.unescape(@uri.user), URI.unescape(@uri.password)) if @uri.user
 
       request.body = {
         id: 'jsonrpc',
