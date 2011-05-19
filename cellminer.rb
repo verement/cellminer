@@ -132,10 +132,10 @@ class CellMiner
 
       loop do
         begin
+          start = Time.now
           work = work_queue.shift
           debug "#{miner} Mining %08x..%08x" %
             [work[:start_nonce], work[:start_nonce] + work[:range] - 1]
-          start = Time.now
           if solution = miner.run(work[:data], work[:target], work[:midstate],
                                   work[:start_nonce], work[:range])
             debug "#{miner} Found solution"
