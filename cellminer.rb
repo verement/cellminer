@@ -19,7 +19,6 @@
 require 'optparse'
 require 'uri'
 require 'thread'
-require 'pp'
 
 require_relative 'bitcoin.rb'
 require_relative 'ext/cellminer.so'
@@ -286,14 +285,6 @@ class CellMiner
     say(info) if options[:debug]
   end
 
-  def dump(data, desc)
-    if options[:debug]
-      puts "#{desc} ="
-      pp data
-    end
-    data
-  end
-
   def getwork(rpc = rpc, &block)
     begin
       work = options[:test] ? testwork : rpc.getwork(&block)
@@ -334,6 +325,8 @@ class CellMiner
   end
 
   def testwork
+    say "Using test data"
+
     # Test data for known block (#115558)
     hash = UInt256.new("000000000000bd26aaf867f23a7b66b6"  \
                        "2ffe1e402f79a424ef8b3e4e84c68f32")
@@ -359,8 +352,9 @@ class CellMiner
 
     check = SHA256.new.update(hash1)
 
-    dump hash, "supposed hash"
-    dump UInt256.new(check.hexdigest).reverse_endian, "calculated hash"
+    debug "Supposed hash\n         = %s" % hash
+    debug "Calculated hash\n         = %s" %
+      UInt256.new(check.hexdigest).reverse_endian
 
     # zero nonce
     datav[5] = 0
