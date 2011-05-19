@@ -29,7 +29,6 @@ require_relative 'sha256.rb'
 class CellMiner
   attr_accessor :options
   attr_reader :rpc
-  attr_reader :mutex
 
   class AbortMining < StandardError; end
 
@@ -278,7 +277,7 @@ class CellMiner
   private
 
   def say(info)
-    mutex.synchronize do
+    @mutex.synchronize do
       puts "[%s] %s" % [Time.now.strftime("%Y-%m-%d %H:%M:%S"), info]
     end
   end
