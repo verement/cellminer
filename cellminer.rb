@@ -38,7 +38,6 @@ class CellMiner
 
   QUEUE_MAX = 384
 
-  INTERVAL = 60
   RETRY_INTERVAL = 30
 
   def initialize(argv = [])
@@ -46,6 +45,7 @@ class CellMiner
 
     options[:num_spe] = 6
     options[:num_ppe] = 0
+    options[:interval] = 60
     options[:debug] = $DEBUG
 
     OptionParser.new do |opts|
@@ -71,6 +71,12 @@ class CellMiner
               "Number of PPE threads to use (default %d)" %
               options[:num_ppe]) do |opt|
         options[:num_ppe] = opt
+      end
+
+      opts.on("-i", "--interval SECS", Integer,
+              "Work polling interval (default %d)" %
+              options[:interval]) do |opt|
+        options[:interval] = opt
       end
 
       opts.on("-b", "--balance",
@@ -253,7 +259,7 @@ class CellMiner
           end
         end
 
-        sleep INTERVAL
+        sleep options[:interval]
       end
     end
 
