@@ -77,6 +77,11 @@ module Bitcoin
 
       @session = Net::HTTP::Persistent.new
       @session.read_timeout = timeout if timeout
+
+      def @session.idempotent? req
+        # All of the RPC methods we use are idempotent
+        true
+      end
     end
 
     def method_missing(method, *params)
