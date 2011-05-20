@@ -89,6 +89,7 @@ module Bitcoin
       request.basic_auth(URI.unescape(@uri.user),
                          URI.unescape(@uri.password)) if @uri.user
 
+      request.content_type = 'application/json'
       request.body = {
         id: 'jsonrpc',
         method: method,
