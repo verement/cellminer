@@ -43,7 +43,7 @@ class CellMiner
   def initialize(argv = [])
     @options = Hash.new
 
-    options[:num_spe] = 6
+    options[:num_spe] = Bitcoin::SPUMiner::USABLE_SPES
     options[:num_ppe] = 0
     options[:interval] = 60
     options[:debug] = $DEBUG

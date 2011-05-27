@@ -238,10 +238,19 @@ VALUE i_allocate(VALUE klass)
 void Init_spu_miner(VALUE container)
 {
   VALUE cSPUMiner;
+  int info;
 
   cSPUMiner = rb_define_class_under(container, "SPUMiner", rb_cObject);
   rb_define_alloc_func(cSPUMiner, i_allocate);
 
   rb_define_method(cSPUMiner, "initialize", m_initialize, -1);
   rb_define_method(cSPUMiner, "run", m_run, 5);
+
+  info = spe_cpu_info_get(SPE_COUNT_PHYSICAL_SPES, -1);
+  if (info > 0)
+    rb_define_const(cSPUMiner, "PHYSICAL_SPES", INT2NUM(info));
+
+  info = spe_cpu_info_get(SPE_COUNT_USABLE_SPES, -1);
+  if (info > 0)
+    rb_define_const(cSPUMiner, "USABLE_SPES", INT2NUM(info));
 }
