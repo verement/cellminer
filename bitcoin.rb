@@ -112,7 +112,13 @@ module Bitcoin
       raise JSONRPCError.new(json['error']) if json['error']
 
       if block_given? and poll_path = response['X-Long-Polling']
-        yield self.class.new(@uri + poll_path, @user_agent, LONG_POLL_TIMEOUT)
+        poll_uri = URI.parse(poll_path)
+        poll_uri = @uri.merge(poll_uri) if poll_uri.kind_of?(URI::Generic)
+        if @uri.user
+          poll_uri.user = @uri.user
+          poll_uri.password = @uri.password
+        end
+        yield self.class.new(poll_uri, @user_agent, LONG_POLL_TIMEOUT)
       end
 
       json['result']
