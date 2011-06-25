@@ -5,3 +5,4 @@
 *.log
 depend.auto
 ext/Makefile
+core

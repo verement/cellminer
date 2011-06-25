@@ -26,6 +26,18 @@ Ruby Gems [gem1.9.1 install ...]
 ---------
  * net-http-persistent
 
+System
+------
+
+In order to make use of your SPEs under Linux, you must have spufs mounted on
+/spu. For example:
+
+  # mount -t spufs spufs /spu
+
+Or equivalently, ensure /etc/fstab contains a line similar to the following:
+
+  spufs /spu spufs defaults 0 0
+
 Building
 ========
 
