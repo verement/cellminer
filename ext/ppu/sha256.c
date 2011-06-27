@@ -95,7 +95,7 @@ uint32_t Maj(uint32_t x, uint32_t y, uint32_t z)
 static inline
 vec_uint4 vec_Maj(vec_uint4 x, vec_uint4 y, vec_uint4 z)
 {
-  return vec_sel(vec_and(y, z), vec_or(y, z), x);
+  return vec_sel(x, y, vec_xor(x, z));
 }
 
 static inline
