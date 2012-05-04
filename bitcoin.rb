@@ -114,6 +114,7 @@ module Bitcoin
       if block_given? and poll_path = response['X-Long-Polling']
         poll_uri = URI.parse(poll_path)
         poll_uri = @uri.merge(poll_uri) if poll_uri.kind_of?(URI::Generic)
+        poll_uri.path = "/" if poll_uri.path.empty?
         if @uri.user
           poll_uri.user = @uri.user
           poll_uri.password = @uri.password
