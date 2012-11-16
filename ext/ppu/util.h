@@ -23,6 +23,9 @@
 
 # include "sha256.h"
 
+# define   likely(expr)  __builtin_expect((expr), 1)
+# define unlikely(expr)  __builtin_expect((expr), 0)
+
 extern int debugging;
 
 void hex(char *, const char *, uint32_t);

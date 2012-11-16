@@ -21,6 +21,7 @@
 # include <vec_types.h>
 
 # include "sha256.h"
+# include "util.h"
 
 const hash_t H0 = {
   { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
@@ -599,7 +600,7 @@ int64_t sha256_search(const message_t M,
     T2 = ADD(ADD(d, T1), SPLAT(H0.words[7]));
 
     /* quick check to see if any element of the last word vector is zero */
-    if (__builtin_expect(!vec_any_eq(T2, vec_splat_u32(0)), 1))
+    if (likely(!vec_any_eq(T2, vec_splat_u32(0))))
       continue;
 
     /* we have something interesting; finish the SHA-256 */
@@ -645,7 +646,7 @@ int64_t sha256_search(const message_t M,
     borrow = GENBX(SPLAT(target.words[0]),
 		   vec_perm(h, h, reverse_endian), borrow);
 
-    if (__builtin_expect(vec_all_eq(borrow, vec_splat_u32(0)), 1))
+    if (likely(vec_all_eq(borrow, vec_splat_u32(0))))
       continue;
 
     /* we have a winner */

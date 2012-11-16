@@ -109,14 +109,14 @@ int main(uint64_t speid, uint64_t argp, uint64_t envp)
 
     /* load parameters */
 
-    if (__builtin_expect(dma_params(&params, argp, dma_get), 0))
+    if (unlikely(dma_params(&params, argp, dma_get)))
       return WORKER_DMA_ERROR;
 
     debugging = params.flags & WORKER_FLAG_DEBUG;
 
     /* do work */
 
-    if (__builtin_expect(result = work_on(&params), 0)) {
+    if (unlikely(result = work_on(&params))) {
       if (result < 0)
 	spu_stop(WORKER_VERIFY_ERROR);
       else {

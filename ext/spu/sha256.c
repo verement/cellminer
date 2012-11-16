@@ -20,6 +20,7 @@
 # include <spu_intrinsics.h>
 
 # include "sha256.h"
+# include "util.h"
 
 const hash_t H0 = {
   { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
@@ -586,7 +587,7 @@ int64_t sha256_search(const message_t M,
     T2 = ADD(ADD(d, T1), H0.words[7]);
 
     /* quick check to see if any element of the last word vector is zero */
-    if (__builtin_expect(spu_extract(spu_gather(spu_cmpeq(T2, 0)), 0) == 0, 1))
+    if (likely(spu_extract(spu_gather(spu_cmpeq(T2, 0)), 0) == 0))
       continue;
 
     /* we have something interesting; finish the SHA-256 */
@@ -634,7 +635,7 @@ int64_t sha256_search(const message_t M,
 
     solution = spu_gather(borrow);
 
-    if (__builtin_expect(spu_extract(solution, 0) == 0, 1))
+    if (likely(spu_extract(solution, 0) == 0))
       continue;
 
     /* we have a winner */
