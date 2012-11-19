@@ -326,6 +326,7 @@ int64_t sha256_search(const message_t M,
 		      uint32_t start_nonce, uint32_t range)
 {
   uint32_t nonce, stop_nonce = start_nonce + range + (4 - (range % 4)) % 4;
+  uint32_t answer;
 # if !defined(UNROLL_SHA256)
   int t;
 # endif
@@ -640,7 +641,9 @@ int64_t sha256_search(const message_t M,
 
     /* we have a winner */
 
-    return nonce + (spu_extract(spu_cntlz(solution), 0) - 28);
+    answer = nonce + (spu_extract(spu_cntlz(solution), 0) - 28);
+    if (answer - start_nonce < range)
+      return answer;
   }
 
   return -1;

@@ -339,6 +339,7 @@ int64_t sha256_search(const message_t M,
 		      uint32_t start_nonce, uint32_t range)
 {
   uint32_t nonce, stop_nonce = start_nonce + range + (4 - (range % 4)) % 4;
+  uint32_t answer;
 # if !defined(UNROLL_SHA256)
   int t;
 # endif
@@ -652,13 +653,18 @@ int64_t sha256_search(const message_t M,
     /* we have a winner */
 
     if (vec_extract(borrow, 0))
-      return nonce + 0;
-    if (vec_extract(borrow, 1))
-      return nonce + 1;
-    if (vec_extract(borrow, 2))
-      return nonce + 2;
-    if (vec_extract(borrow, 3))
-      return nonce + 3;
+      answer = nonce + 0;
+    else if (vec_extract(borrow, 1))
+      answer = nonce + 1;
+    else if (vec_extract(borrow, 2))
+      answer = nonce + 2;
+    else if (vec_extract(borrow, 3))
+      answer = nonce + 3;
+    else
+      continue;
+
+    if (answer - start_nonce < range)
+      return answer;
   }
 
   return -1;
