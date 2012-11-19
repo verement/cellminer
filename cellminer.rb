@@ -295,7 +295,7 @@ class CellMiner
     begin
       work = options[:test] ? testwork : rpc.getwork(&block)
     rescue => err
-      say "RPC error: %s" % err
+      say "RPC (getwork) error: %s" % err
       sleep RETRY_INTERVAL
       retry
     end
@@ -316,7 +316,7 @@ class CellMiner
     begin
       rpc.getwork(data)
     rescue => err
-      say "RPC error: %s" % err
+      say "RPC (sendwork) error: %s" % err
       sleep RETRY_INTERVAL
       retry
     end
