@@ -45,6 +45,9 @@ module Bitcoin
     # This is a workaround; URI needs escaped username and password
     if username
       uri.user     = URI.escape username, /[^#{URI::PATTERN::UNRESERVED}]/
+      uri.password = ''
+    end
+    if password
       uri.password = URI.escape password, /[^#{URI::PATTERN::UNRESERVED}]/
     end
 
