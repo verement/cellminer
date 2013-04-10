@@ -303,7 +303,7 @@ class CellMiner
     # unpack hex strings and fix byte ordering
     work = work.map do |k, v|
       k = k.to_sym
-      v = [v].pack('H*')
+      v = [v.to_s].pack('H*')
       v = (k == :target) ? v.reverse : v.unpack('V*').pack('N*')
       [k, v]
     end
