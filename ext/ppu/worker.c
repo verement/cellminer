@@ -43,20 +43,19 @@ int verify_midstate(const hash_t midstate, const message_t data)
  */
 int ppu_mine(struct worker_params *params)
 {
-  uint32_t *data = (uint32_t *) params->data;
-  char buf[257];
   int64_t nonce;
+  char buf[257];
 
   debugging = params->flags & WORKER_FLAG_DEBUG;
 
-  hex(buf, params->data, 128);
+  hex(buf, params->data.c, 128);
   debug("data     = %s", buf);
 
-  debug_hash((const hash_t *) params->target,   "target  ");
-  debug_hash((const hash_t *) params->midstate, "midstate");
+  debug_hash(&params->target.h,   "target  ");
+  debug_hash(&params->midstate.h, "midstate");
 
-  if (!verify_midstate(*(const hash_t *) params->midstate,
-		       ((const message_t *) data)[0])) {
+  if (!verify_midstate(params->midstate.h,
+		       params->data.m[0])) {
     debug("midstate verification failed");
     return WORKER_VERIFY_ERROR;
   }
@@ -64,16 +63,16 @@ int ppu_mine(struct worker_params *params)
   debug("start_nonce = %08lx, range = %08lx",
 	params->start_nonce, params->range);
 
-  nonce = sha256_search(((const message_t *) params->data)[1],
-			*(const hash_t *) params->target,
-			*(const hash_t *) params->midstate,
+  nonce = sha256_search(params->data.m[1],
+			params->target.h,
+			params->midstate.h,
 			params->start_nonce,
 			params->range);
   if (nonce < 0)
     return WORKER_FOUND_NOTHING;
 
   /* store the found nonce */
-  data[19] = nonce;
+  params->data.u[19] = nonce;
 
   return WORKER_FOUND_SOMETHING;
 }
