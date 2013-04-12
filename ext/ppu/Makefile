@@ -19,12 +19,13 @@
 DEFINE		 = -DUNROLL_SHA256
 DEFINE		+= -Dinline="inline __attribute__((always_inline))"
 #DEFINE		+= -DDEBUG
-OPTIMIZE	 = -O3 -funroll-loops
-MACHINE		 = -mcpu=cell #-maltivec
+OPTIMIZE	 = -O3 -flto -funroll-loops
+LDOPT		 = -O3 -flto -fuse-linker-plugin -Wl,-O3
+MACHINE		 = -mcpu=cell -mabi=altivec
 DEBUG		 = -Wall -Werror
 
 CFLAGS		 = $(DEFINE) $(OPTIMIZE) $(MACHINE) $(DEBUG) $(INCLUDEPATH)
-LDFLAGS		 = $(LIBPATH)
+LDFLAGS		 = $(LIBPATH) $(LDOPT)
 
 CC		 = gcc
 
