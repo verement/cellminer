@@ -28,6 +28,7 @@ require_relative 'sha256.rb'
 class CellMiner
   attr_accessor :options
   attr_reader :rpc
+  attr_reader :queue_max
 
   class AbortMining < StandardError; end
 
@@ -36,7 +37,8 @@ class CellMiner
   NSLICES = 128
   QUANTUM = 0x100000000 / NSLICES
 
-  QUEUE_MAX = 384
+  PER_SPE_QUEUE = 32
+  PER_PPE_QUEUE = 8
 
   RETRY_INTERVAL = 30
 
@@ -95,6 +97,8 @@ class CellMiner
       end
     end.parse!(argv)
 
+    @queue_max = PER_SPE_QUEUE * options[:num_spe] + PER_PPE_QUEUE * options[:num_ppe]
+
     server = argv.shift || ENV['BITCOIN_SERVER'] ||
       begin
         warn "Warning: using default server localhost"
@@ -128,6 +132,8 @@ class CellMiner
     end
 
     say "%s starting" % USER_AGENT
+
+    say "Using a work queue of size %d" % queue_max
 
     work_queue = Queue.new
     solved_queue = Queue.new
@@ -236,7 +242,7 @@ class CellMiner
         end
 
         # trim excess work
-        work_queue.shift(true) while work_queue.length > QUEUE_MAX
+        work_queue.shift(true) while work_queue.length > queue_max
       end
     end
 
