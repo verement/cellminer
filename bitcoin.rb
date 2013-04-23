@@ -52,7 +52,7 @@ module Bitcoin
   end
 
   class RPCProxy
-    LONG_POLL_TIMEOUT = 60 * 60 * 12
+    LONG_POLL_TIMEOUT = 60 * 5
 
     class JSONRPCError < StandardError
       attr_reader :code
