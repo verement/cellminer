@@ -107,18 +107,14 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate,
 
   StringValue(data);
   StringValue(target);
-  StringValue(midstate);
 
   if (RSTRING_LEN(data) != 128)
     rb_raise(rb_eArgError, "data must be 128 bytes");
   if (RSTRING_LEN(target) != 32)
     rb_raise(rb_eArgError, "target must be 32 bytes");
-  if (RSTRING_LEN(midstate) != 32)
-    rb_raise(rb_eArgError, "midstate must be 32 bytes");
 
   memcpy((void *) miner->params.data.c,     RSTRING_PTR(data),    128);
   memcpy((void *) miner->params.target.c,   RSTRING_PTR(target),   32);
-  memcpy((void *) miner->params.midstate.c, RSTRING_PTR(midstate), 32);
 
   miner->params.start_nonce = NUM2ULONG(start_nonce);
   miner->params.range       = NUM2ULONG(range);
@@ -134,10 +130,6 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate,
   switch (retval) {
   case Qtrue:
     retval = rb_str_new((const char *) miner->params.data.c, 128);
-    break;
-
-  case Qnil:
-    rb_raise(rb_eArgError, "midstate verification failed");
     break;
 
   case Qundef:

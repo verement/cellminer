@@ -32,10 +32,6 @@ struct worker_params {
     char c[32];
     hash_t h;
   } target;
-  union {
-    char c[32];
-    hash_t h;
-  } midstate;
 
   uint32_t start_nonce;
   uint32_t range;
