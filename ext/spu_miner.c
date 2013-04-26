@@ -172,6 +172,7 @@ VALUE m_run(VALUE self, VALUE data, VALUE target, VALUE midstate,
     int code;
 
   case Qtrue:
+    miner->params.data.m[1].words[3] = miner->params.nonce;
     retval = rb_str_new((const char *) miner->params.data.c, 128);
     break;
 

@@ -54,7 +54,7 @@ int work_on(struct worker_params *params)
     return 0;
 
   /* store the found nonce */
-  params->data.u[19] = nonce;
+  params->nonce = nonce;
 
   return 1;
 }
