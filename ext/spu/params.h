@@ -32,17 +32,13 @@ struct worker_params {
     char c[32];
     hash_t h;
   } target;
-  union {
-    char c[32];
-    hash_t h;
-  } midstate;
 
   uint32_t start_nonce;
   uint32_t range;
 
   unsigned int flags;
 
-  char padding[127];  /* required for proper DMA */
+  char padding[84];  /* required for proper DMA */
 };
 
 /* parameter flags */
