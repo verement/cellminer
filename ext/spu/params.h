@@ -41,6 +41,10 @@ struct worker_params {
   char padding[80];  /* required for proper DMA */
 };
 
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(sizeof(struct worker_params) == 256, "struct worker_params needs to be padded for proper DMA");
+#endif
+
 /* parameter flags */
 enum {
   WORKER_FLAG_DEBUG = 0x0001
