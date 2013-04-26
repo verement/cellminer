@@ -25,7 +25,6 @@
 struct worker_params {
   union {
     char c[128];
-    uint32_t u[32];
     message_t m[2];
   } data;
   union {
@@ -35,6 +34,7 @@ struct worker_params {
 
   uint32_t start_nonce;
   uint32_t range;
+  uint32_t nonce;
 
   unsigned int flags;
 };

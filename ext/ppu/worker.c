@@ -55,7 +55,7 @@ int ppu_mine(struct worker_params *params)
     return WORKER_FOUND_NOTHING;
 
   /* store the found nonce */
-  params->data.u[19] = nonce;
+  params->nonce = nonce;
 
   return WORKER_FOUND_SOMETHING;
 }
