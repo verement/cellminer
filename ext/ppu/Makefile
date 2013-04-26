@@ -21,12 +21,14 @@ DEFINE		+= -Dinline="inline __attribute__((always_inline))"
 #DEFINE		+= -DDEBUG
 OPTIMIZE	 = -O3 -fno-strict-aliasing -funroll-loops
 MACHINE		 = -mcpu=cell #-maltivec
-DEBUG		 = -Wall -Werror
+WARN		 = -Wall -Werror
+#DEBUG		 = -g
 
-CFLAGS		 = $(DEFINE) $(OPTIMIZE) $(MACHINE) $(DEBUG) $(INCLUDEPATH)
+CFLAGS		 = $(DEFINE) $(OPTIMIZE) $(MACHINE) $(WARN) $(DEBUG) $(INCLUDEPATH)
 LDFLAGS		 = $(LIBPATH)
 
-CC		 = gcc
+CC		 = $(CROSS_COMPILE)gcc
+AR		 = $(CROSS_COMPILE)ar
 
 worker.a: worker.o sha256.o util.o
 	$(AR) rc $@ $?
@@ -42,10 +44,11 @@ test: test.o sha256.o util.o
 
 .PHONY: clean
 clean:
-	-rm -f *.a *.o test
+	-$(RM) *.a *.o test
 
 depend.auto: *.[ch]
 	@$(CC) $(MACHINE) -MM *.c >$@
 
 *.o: Makefile
+
 include depend.auto

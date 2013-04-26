@@ -25,12 +25,15 @@ OPTIMIZE	 = -O3 -fno-strict-aliasing -funroll-loops
 MACHINE		 = -mno-safe-hints
 WARN		 = -Wall -Werror
 #WARN		+= -Wstrict-aliasing=0
+#DEBUG		 = -g
 
-CFLAGS		 = $(DEFINE) $(OPTIMIZE) $(MACHINE) $(WARN) $(INCLUDEPATH)
+CFLAGS		 = $(DEFINE) $(OPTIMIZE) $(MACHINE) $(WARN) $(DEBUG) $(INCLUDEPATH)
 LDFLAGS		 = $(LIBPATH)
 
-CC		 = spu-gcc
-AS		 = spu-as
+SPU_CROSS_COMPILE	?= spu-
+
+CC		 = $(SPU_CROSS_COMPILE)gcc
+AS		 = $(SPU_CROSS_COMPILE)as
 
 worker.elf: main.o worker.o sha256.o util.o spu_slih.o spu_flih.o
 	$(CC) -o $@ $(LDFLAGS) $^
@@ -46,10 +49,11 @@ test.elf: test.o sha256.o util.o
 
 .PHONY: clean
 clean:
-	-rm -f *.elf *.o
+	-$(RM) *.elf *.o
 
 depend.auto: *.[ch]
 	@$(CC) -MM *.c >$@
 
 *.o: Makefile
+
 include depend.auto
