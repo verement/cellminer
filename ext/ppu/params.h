@@ -20,14 +20,21 @@
 # define PARAMS_H
 
 # include <stdint.h>
+# include "sha256.h"
 
 struct worker_params {
-  char data[128];
-  char target[32];
-  char midstate[32];
+  union {
+    char c[128];
+    message_t m[2];
+  } data;
+  union {
+    char c[32];
+    hash_t h;
+  } target;
 
   uint32_t start_nonce;
   uint32_t range;
+  uint32_t nonce;
 
   unsigned int flags;
 };

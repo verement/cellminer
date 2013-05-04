@@ -25,54 +25,36 @@
 # include "util.h"
 
 /*
- * NAME:	verify_midstate()
- * DESCRIPTION:	check that the midstate received is correct
- */
-static
-int verify_midstate(const hash_t midstate, const message_t data)
-{
-  hash_t hash;
-
-  hash = sha256_update(data, H0);
-
-  return memcmp(&hash, &midstate, sizeof(hash_t)) == 0;
-}
-
-/*
  * NAME:	work_on()
  * DESCRIPTION:	search for a solution and return 1 if found, 0 otherwise
  */
 int work_on(struct worker_params *params)
 {
-  uint32_t *data = (uint32_t *) params->data;
-  char buf[257];
   int64_t nonce;
+  char buf[257];
 
-  hex(buf, params->data, 128);
+  /* calculate the midstate of the received data */
+  hash_t midstate = sha256_update(params->data.m[0], H0);
+
+  hex(buf, params->data.c, 128);
   debug("data     = %s", buf);
 
-  debug_hash((const hash_t *) params->target,   "target  ");
-  debug_hash((const hash_t *) params->midstate, "midstate");
-
-  if (!verify_midstate(*(const hash_t *) params->midstate,
-		       ((const message_t *) data)[0])) {
-    debug("midstate verification failed");
-    return -1;
-  }
+  debug_hash(&params->target.h,   "target  ");
+  debug_hash(&midstate,           "midstate");
 
   debug("start_nonce = %08lx, range = %08lx",
 	params->start_nonce, params->range);
 
-  nonce = sha256_search(((const message_t *) params->data)[1],
-			*(const hash_t *) params->target,
-			*(const hash_t *) params->midstate,
+  nonce = sha256_search(params->data.m[1],
+			params->target.h,
+			midstate,
 			params->start_nonce,
 			params->range);
   if (nonce < 0)
     return 0;
 
   /* store the found nonce */
-  data[19] = nonce;
+  params->nonce = nonce;
 
   return 1;
 }
